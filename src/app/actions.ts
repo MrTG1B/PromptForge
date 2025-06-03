@@ -10,7 +10,10 @@ export async function handleRefinePromptAction(input: RefinePromptInput): Promis
     return result;
   } catch (error) {
     console.error("Error in handleRefinePromptAction:", error);
-    throw new Error("Failed to refine prompt.");
+    if (error instanceof Error) {
+      throw new Error(`Failed to refine prompt: ${error.message}`);
+    }
+    throw new Error("Failed to refine prompt due to an unknown error.");
   }
 }
 
@@ -20,6 +23,9 @@ export async function handleSuggestParametersAction(input: SuggestParametersInpu
     return result;
   } catch (error) {
     console.error("Error in handleSuggestParametersAction:", error);
-    throw new Error("Failed to suggest parameters.");
+    if (error instanceof Error) {
+      throw new Error(`Failed to suggest parameters: ${error.message}`);
+    }
+    throw new Error("Failed to suggest parameters due to an unknown error.");
   }
 }
