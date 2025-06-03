@@ -1,7 +1,7 @@
 // src/components/prompt-forge/PromptInputForm.tsx
 "use client";
 
-import type React from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect and useState
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -51,6 +51,12 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
     }
   });
 
+  const [currentYear, setCurrentYear] = useState<number | null>(null);
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear());
+  }, []); // Empty dependency array ensures this runs once on mount, client-side
+
   const handleSuggestParams = async () => {
     const promptIdea = getValues("promptIdea");
     if (!promptIdea || promptIdea.length < 10) {
@@ -66,7 +72,6 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
     }
   };
   
-  const currentYear = new Date().getFullYear();
 
   return (
     <Card className="w-full shadow-xl">
@@ -81,7 +86,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
             <Textarea
               id="promptIdea"
               {...register("promptIdea")}
-              placeholder={`e.g., "A blog post about the future of AI in education in ${currentYear}" or "A short story about a friendly robot exploring Mars"`}
+              placeholder={currentYear ? `e.g., "A blog post about the future of AI in education in ${currentYear}" or "A short story about a friendly robot exploring Mars"` : "Loading example..."}
               className="mt-1 min-h-[120px] text-base"
               aria-invalid={errors.promptIdea ? "true" : "false"}
             />
