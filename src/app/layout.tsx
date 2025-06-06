@@ -1,32 +1,32 @@
 
+// src/app/layout.tsx
 import type { Metadata } from 'next';
 import Script from 'next/script'; // Import next/script
 import './globals.css';
 import { Analytics } from "@vercel/analytics/next";
 import GlobalProviders from '@/components/providers/GlobalProviders';
 
-
 const siteUrl = 'https://prompt-forge-blond.vercel.app';
-const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 const facebookAppId = '1663861460968287'; // Facebook App ID for login
-const ogImageUrl = `${siteUrl}/promptforge-og.png`;
+const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 
+const ogImageUrl = `${siteUrl}/promptforge-og.png`; // Absolute URL for the OG image
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(siteUrl), // Base URL for resolving relative paths
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
-    icon: '/promptforge-og.png', // Relative path, resolved by metadataBase
+    icon: '/promptforge-og.png', // Relative path, will be resolved by metadataBase
   },
   openGraph: {
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    url: siteUrl,
+    url: siteUrl, // Absolute URL of the page
     siteName: 'PromptForge',
     images: [
       {
-        url: ogImageUrl, // Absolute URL
+        url: ogImageUrl, // Absolute URL to the image
         width: 1200,
         height: 630,
         alt: 'PromptForge Social Sharing Image',
@@ -39,10 +39,15 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    images: [ogImageUrl], // Absolute URL
+    images: [ // Changed to an array of objects for consistency and robustness
+      {
+        url: ogImageUrl, // Absolute URL to the image
+        alt: 'PromptForge Twitter Image',
+      }
+    ],
   },
   other: {
-    'fb:app_id': facebookAppId,
+    'fb:app_id': facebookAppId, // For Facebook integration
   }
 };
 
@@ -71,12 +76,12 @@ export default function RootLayout({
           {`
             window.fbAsyncInit = function() {
               FB.init({
-                appId: '${facebookAppId}', // Use the constant directly
+                appId: '${facebookAppId}',
                 cookie: true,
-                xfbml: false, // Changed to false: Only using SDK for login, not social plugins
-                version: 'v20.0' // Using a recent API version
+                xfbml: false, // Changed to false as we are only using SDK for login
+                version: 'v20.0'
               });
-              // FB.AppEvents.logPageView(); // Removed: Logs page views automatically
+              // FB.AppEvents.logPageView(); // Removed earlier
             };
           `}
         </Script>
