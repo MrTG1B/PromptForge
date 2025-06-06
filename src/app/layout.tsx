@@ -11,11 +11,11 @@ const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(siteUrl), // Still good practice for other relative URLs & canonical
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
-    icon: '/promptforge-logo.png',
+    icon: `${siteUrl}/promptforge-logo.png`, // Explicitly absolute
   },
   openGraph: {
     title: 'PromptForge',
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     siteName: 'PromptForge',
     images: [
       {
-        url: '/promptforge-og.png',
+        url: `${siteUrl}/promptforge-og.png`, // Explicitly absolute
         width: 1200,
         height: 630,
         alt: 'PromptForge Social Sharing Image',
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     description: 'AI-powered prompt generation and refinement tool.',
     images: [
       {
-        url: '/promptforge-og.png',
+        url: `${siteUrl}/promptforge-og.png`, // Explicitly absolute
         width: 1200,
         height: 630,
         alt: 'PromptForge Social Sharing Image',
@@ -67,7 +67,7 @@ export default function RootLayout({
           {`
             window.fbAsyncInit = function() {
               FB.init({
-                appId: '750845667265576',
+                appId: '${metadata.openGraph?.appId}',
                 cookie: true,
                 xfbml: true,
                 version: 'v20.0' // Using a recent API version
