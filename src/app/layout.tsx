@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     ],
     locale: 'en_US',
     type: 'website',
-    appId: '750845667265576',
+    appId: '1663861460968287',
   },
   twitter: {
     card: 'summary_large_image',
