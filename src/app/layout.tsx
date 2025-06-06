@@ -13,11 +13,10 @@ const facebookAppId = '1663861460968287'; // Facebook App ID for login
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: 'WellMeds - Your Medicine Information Hub',
-  description: 'Search for medicine details by name, enhanced by AI with WellMeds. Supports multiple languages.',
-  keywords: 'medicine, search, pharmacy, health, AI, multilingual, Paracetamol, Amoxicillin, WellMeds',
+  title: 'PromptForge',
+  description: 'AI-powered prompt generation and refinement tool.',
   icons: {
-    icon: '/images/logo.png', // Assumes logo is at public/images/logo.png
+    icon: '/promptforge-og.png', // Relative path
   },
   // openGraph object has been completely removed
   // twitter object has been completely removed
