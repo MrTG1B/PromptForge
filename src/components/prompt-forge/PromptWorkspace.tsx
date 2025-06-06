@@ -55,19 +55,21 @@ const PromptWorkspace: React.FC = () => {
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
 
-      oscillator.type = 'triangle'; 
-      oscillator.frequency.setValueAtTime(440, ctx.currentTime); 
-      gainNode.gain.setValueAtTime(0.4, ctx.currentTime);
-      // Extended duration from 0.5 to 0.8 seconds
-      gainNode.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.8); 
+      oscillator.type = 'sine'; // Changed to 'sine' for a purer wave sound
+      oscillator.frequency.setValueAtTime(261.63, ctx.currentTime); // C4 note, for a slightly lower, softer pitch
+      
+      // Envelope for a "wavey" feel and longer duration
+      gainNode.gain.setValueAtTime(0, ctx.currentTime); // Start silent
+      gainNode.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 0.15); // Quick swell up (attack phase)
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.5); // Extended decay (release phase)
 
       oscillator.start(ctx.currentTime);
-      // Extended duration from 0.5 to 0.8 seconds
-      oscillator.stop(ctx.currentTime + 0.8);
+      oscillator.stop(ctx.currentTime + 1.5); // Stop oscillator after 1.5 seconds
     } catch (e) {
       console.error("Error playing sound:", e);
       if (audioContextRef.current && audioContextRef.current.state === 'closed') {
-          audioContextRef.current = new window.AudioContext();
+          // Re-initialize if it was closed due to an error, though this is less common for simple playback.
+          audioContextRef.current = new window.AudioContext(); 
       }
     }
   };
