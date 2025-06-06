@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
-    icon: '/promptforge-og.png', // Relative path
+    icon: '/images/promptforge-og.png', // Relative path
   }
   // openGraph object has been completely removed
   // twitter object has been completely removed
