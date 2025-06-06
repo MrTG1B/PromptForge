@@ -66,7 +66,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognitionAPI) {
         const instance = new SpeechRecognitionAPI();
-        instance.continuous = false;
+        instance.continuous = false; // Should stop after user pauses
         instance.interimResults = false;
         instance.lang = 'en-US';
         speechRecognitionRef.current = instance;
@@ -132,10 +132,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
     }
     
     try {
-      // Check/request permission if not explicitly known
       if (micPermissionGranted === null) {
-        // Modern browsers require interaction for permission request, but speechRecognition.start() implicitly does this.
-        // However, to be more explicit or handle prior denial:
         if (navigator.permissions) {
             const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
             if (permissionStatus.state === 'granted') {
@@ -146,7 +143,6 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
                 toast({ title: "Permission Denied", description: "Microphone access is required to use voice input.", variant: "destructive" });
                 return;
             }
-            // If 'prompt', starting recognition will trigger the prompt
         }
       }
       speechRecognitionRef.current.start();
@@ -165,6 +161,10 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
 
 
   const handleFormSubmit: SubmitHandler<PromptFormValues> = (data) => {
+    if (isListening && speechRecognitionRef.current) {
+      speechRecognitionRef.current.stop();
+      // The onend handler will set setIsListening(false)
+    }
     onSubmitPrompt(data, includeParameters);
   };
   
