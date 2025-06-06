@@ -8,10 +8,11 @@ import GlobalProviders from '@/components/providers/GlobalProviders';
 
 const siteUrl = 'https://prompt-forge-blond.vercel.app';
 const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+const facebookAppId = '750845667265576'; // Define Facebook App ID as a constant
 
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl), // Still good practice for other relative URLs & canonical
+  metadataBase: new URL(siteUrl),
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
     ],
     locale: 'en_US',
     type: 'website',
-    appId: '1663861460968287',
+    // appId property removed from here to fix TypeScript error
   },
   twitter: {
     card: 'summary_large_image',
@@ -47,6 +48,9 @@ export const metadata: Metadata = {
       }
     ],
   },
+  other: { // Add fb:app_id using the 'other' metadata property
+    'fb:app_id': facebookAppId,
+  }
 };
 
 export default function RootLayout({
@@ -67,7 +71,7 @@ export default function RootLayout({
           {`
             window.fbAsyncInit = function() {
               FB.init({
-                appId: '${metadata.openGraph?.appId}',
+                appId: '${facebookAppId}', // Use the constant directly
                 cookie: true,
                 xfbml: true,
                 version: 'v20.0' // Using a recent API version
