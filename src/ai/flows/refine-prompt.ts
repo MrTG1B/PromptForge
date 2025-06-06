@@ -1,3 +1,4 @@
+
 // src/ai/flows/refine-prompt.ts
 'use server';
 
@@ -33,14 +34,20 @@ const prompt = ai.definePrompt({
   name: 'refinePromptPrompt',
   input: {schema: RefinePromptInputSchema},
   output: {schema: RefinePromptOutputSchema},
-  prompt: `You are an AI prompt expert. Your task is to refine a basic prompt idea into a more effective and detailed prompt based on the user's specifications.
+  prompt: `You are an AI prompt expert. Your task is to refine a basic prompt idea into a more effective and detailed prompt.
 
-Here's the basic prompt idea:
+The user's basic idea is:
 {{{promptIdea}}}
 
+{{#if style}}
+The user has specified the following parameters. You MUST incorporate these into your refined prompt:
 Desired style: {{{style}}}
 Desired length: {{{length}}}
 Desired tone: {{{tone}}}
+Ensure the refined prompt clearly reflects these characteristics. For example, if the style is 'Movie Script', the refined prompt should guide the generation of a movie script.
+{{else}}
+The user has not specified particular parameters for style, length, or tone. Generate a generally effective and detailed prompt based on the core idea.
+{{/if}}
 
 Refined Prompt:`,
 });
@@ -56,3 +63,4 @@ const refinePromptFlow = ai.defineFlow(
     return output!;
   }
 );
+
