@@ -9,17 +9,41 @@ import GlobalProviders from '@/components/providers/GlobalProviders';
 const siteUrl = 'https://prompt-forge-blond.vercel.app';
 const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 const facebookAppId = '1663861460968287'; // Facebook App ID for login
+const ogImageUrl = `${siteUrl}/promptforge-og.png`;
 
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
-    icon: '/images/promptforge-og.png', // Relative path
+    icon: '/promptforge-og.png', // Relative path, resolved by metadataBase
+  },
+  openGraph: {
+    title: 'PromptForge',
+    description: 'AI-powered prompt generation and refinement tool.',
+    url: siteUrl,
+    siteName: 'PromptForge',
+    images: [
+      {
+        url: ogImageUrl, // Absolute URL
+        width: 1200,
+        height: 630,
+        alt: 'PromptForge Social Sharing Image',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PromptForge',
+    description: 'AI-powered prompt generation and refinement tool.',
+    images: [ogImageUrl], // Absolute URL
+  },
+  other: {
+    'fb:app_id': facebookAppId,
   }
-  // openGraph object has been completely removed
-  // twitter object has been completely removed
-  // 'other' for fb:app_id also removed
 };
 
 export default function RootLayout({
