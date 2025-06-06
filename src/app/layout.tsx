@@ -2,11 +2,9 @@
 import type { Metadata } from 'next';
 import Script from 'next/script'; // Import next/script
 import './globals.css';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { Toaster } from '@/components/ui/toaster';
-import Header from '@/components/layout/Header';
 import { Analytics } from "@vercel/analytics/next";
-import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
+import GlobalProviders from '@/components/providers/GlobalProviders';
+
 
 const siteUrl = 'https://prompt-forge-blond.vercel.app';
 const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
@@ -26,7 +24,7 @@ export const metadata: Metadata = {
     siteName: 'PromptForge',
     images: [
       {
-        url: '/promptforge-og.png', // Relative path, resolved by metadataBase
+        url: '/promptforge-og.png', 
         width: 1200,
         height: 630,
         alt: 'PromptForge Social Sharing Image',
@@ -34,13 +32,13 @@ export const metadata: Metadata = {
     ],
     locale: 'en_US',
     type: 'website',
-    appId: '750845667265576',
+    appId: '750845667265576', 
   },
   twitter: {
     card: 'summary_large_image',
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    images: ['/promptforge-og.png'], // Relative path, resolved by metadataBase
+    images: ['/promptforge-og.png'], 
   },
 };
 
@@ -79,15 +77,9 @@ export default function RootLayout({
           strategy="lazyOnload"
           id="facebook-jssdk"
         />
-        <GoogleReCaptchaProvider reCaptchaKey={recaptchaSiteKey || "NO_RECAPTCHA_KEY_DEFINED"}>
-          <AuthProvider>
-            <Header />
-            <main className="flex-grow container mx-auto px-4 py-8">
-              {children}
-            </main>
-            <Toaster />
-          </AuthProvider>
-        </GoogleReCaptchaProvider>
+        <GlobalProviders recaptchaSiteKey={recaptchaSiteKey!}>
+          {children}
+        </GlobalProviders>
         <Analytics />
       </body>
     </html>
