@@ -6,6 +6,8 @@ import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/Header';
 import { Analytics } from "@vercel/analytics/next";
 
+const siteUrl = 'https://prompt-forge-blond.vercel.app'; // Define site URL once
+
 export const metadata: Metadata = {
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
@@ -15,13 +17,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    url: 'https://prompt-forge-blond.vercel.app', // Ensure this is your live app's URL
+    url: siteUrl, 
     siteName: 'PromptForge',
     images: [
       {
-        url: '/promptforge-og.png', // Should be in the public folder
-        width: 1200, // Standard OG image width
-        height: 630, // Standard OG image height
+        url: `${siteUrl}/promptforge-og.png`, // Absolute URL
+        width: 1200, 
+        height: 630, 
         alt: 'PromptForge Social Sharing Image',
       },
     ],
@@ -32,7 +34,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    images: ['/promptforge-og.png'], // Path to your OG image
+    images: [`${siteUrl}/promptforge-og.png`], // Absolute URL
   },
 };
 
