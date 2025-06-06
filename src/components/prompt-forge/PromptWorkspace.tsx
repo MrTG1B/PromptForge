@@ -1,7 +1,7 @@
 // src/components/prompt-forge/PromptWorkspace.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import PromptInputForm, { type PromptFormValues } from './PromptInputForm';
 import GeneratedPromptDisplay from './GeneratedPromptDisplay';
 import { handleRefinePromptAction } from '@/app/actions';
@@ -106,7 +106,7 @@ const PromptWorkspace: React.FC = () => {
   const handleSubmitPrompt = async (data: PromptFormValues, includeParameters: boolean) => {
     setIsLoadingPrompt(true);
     setError(null);
-    // Do not clear generatedPrompt here to allow seeing previous while new one loads. 
+    // Do not clear generatedPrompt here to allow seeing previous while new one loads.
     // It's cleared in GeneratedPromptDisplay if isLoading is true and promptText is null.
 
     const recaptchaDetails = await getRecaptchaTokenAndAction('refine_prompt');
@@ -159,7 +159,7 @@ const PromptWorkspace: React.FC = () => {
         description: errorMessage,
         variant: "destructive",
       });
-      if (errorMessage.includes("SERVER_CONFIG_ERROR") || errorMessage.includes("GCP_AUTHENTICATION_FAILURE") || errorMessage.includes("SERVER_ERROR")) {
+      if (errorMessage.includes("SERVER_CONFIG_ERROR") || errorMessage.includes("GCP_AUTHENTICATION_FAILURE") || errorMessage.includes("SERVER_ERROR") || errorMessage.includes("SECURITY_SERVICE_INIT_FAILURE")) {
         console.error("A critical server or security configuration error occurred:", errorMessage);
       }
     } finally {
