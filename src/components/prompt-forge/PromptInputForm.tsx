@@ -12,12 +12,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Send, Mic, MicOff } from 'lucide-react';
+import { Loader2, Send, Mic, MicOff, X } from 'lucide-react'; // Added X icon
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
-  promptIdea: z.string().min(10, "Prompt idea must be at least 10 characters."),
+  promptIdea: z.string().min(10, "Prompt idea must be at least 10 characters.").or(z.literal("")), // Allow empty string for clearing
   style: z.string().optional(),
   length: z.string().optional(),
   tone: z.string().optional(),
@@ -38,7 +38,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
   onSubmitPrompt,
   isLoadingPrompt,
 }) => {
-  const { register, handleSubmit, control, formState: { errors }, setValue } = useForm<PromptFormValues>({
+  const { register, handleSubmit, control, formState: { errors }, setValue, watch } = useForm<PromptFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       promptIdea: '',
@@ -58,15 +58,24 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
   const [micPermissionGranted, setMicPermissionGranted] = useState<boolean | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
 
+  const promptIdeaValue = watch("promptIdea"); // Watch the value of promptIdea
+
   const performSubmit = useCallback((data: PromptFormValues) => {
+     if (data.promptIdea.length < 10 && data.promptIdea.length > 0) {
+        toast({
+            title: "Prompt Too Short",
+            description: "Please enter a prompt idea that is at least 10 characters long or clear the field.",
+            variant: "destructive",
+        });
+        return;
+    }
     onSubmitPrompt(data, includeParameters);
-  }, [onSubmitPrompt, includeParameters]);
+  }, [onSubmitPrompt, includeParameters, toast]);
 
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
   }, []);
 
-  // Effect to initialize and cleanup SpeechRecognition instance
   useEffect(() => {
     if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -86,13 +95,12 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
 
     return () => {
       if (speechRecognitionRef.current) {
-        speechRecognitionRef.current.stop(); // Stop if active on unmount
-        speechRecognitionRef.current = null; // Clear the ref
+        speechRecognitionRef.current.stop();
+        speechRecognitionRef.current = null;
       }
     };
-  }, []); // Empty dependency array, runs once on mount and cleans up on unmount
+  }, []);
 
-  // Effect to attach/detach event listeners
   useEffect(() => {
     const currentInstance = speechRecognitionRef.current;
     if (!speechApiSupported || !currentInstance) {
@@ -113,7 +121,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
         .map(result => result[0])
         .map(result => result.transcript)
         .join('');
-      setValue('promptIdea', transcript, { shouldValidate: true });
+      setValue('promptIdea', transcript, { shouldValidate: true, shouldDirty: true });
     };
 
     const handleSpeechError = (event: SpeechRecognitionErrorEvent) => {
@@ -123,8 +131,18 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
       } else if (event.error === 'audio-capture') {
         errorMessage = 'Audio capture failed. Ensure your microphone is working.';
       } else if (event.error === 'not-allowed') {
-        errorMessage = 'Microphone permission denied.';
+        errorMessage = 'Microphone permission denied. Please enable it in your browser settings.';
         setMicPermissionGranted(false);
+      } else if (event.error === 'network') {
+        errorMessage = 'Network error during speech recognition. Please check your connection.';
+      } else if (event.error === 'aborted') {
+        errorMessage = 'Speech recognition was aborted. Please try again.';
+      } else if (event.error === 'language-not-supported') {
+        errorMessage = 'The language is not supported for speech recognition.';
+      } else if (event.error === 'service-not-allowed') {
+        errorMessage = 'Speech recognition service is not allowed. This might be a browser or system policy.';
+      } else if (event.error === 'bad-grammar') {
+        errorMessage = 'There was an issue with the speech recognition grammar.';
       }
       setMicError(errorMessage);
       toast({ title: "Microphone Error", description: errorMessage, variant: "destructive" });
@@ -137,7 +155,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
     currentInstance.onerror = handleSpeechError;
 
     return () => {
-      if (currentInstance) { // Check instance exists before trying to clear handlers
+      if (currentInstance) {
         currentInstance.onstart = null;
         currentInstance.onend = null;
         currentInstance.onresult = null;
@@ -165,7 +183,6 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
     
     try {
       if (micPermissionGranted === null) {
-        // Attempt to query permission if not explicitly denied and not granted
         if (navigator.permissions) {
             const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
             if (permissionStatus.state === 'granted') {
@@ -176,7 +193,6 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
                 toast({ title: "Permission Denied", description: "Microphone access is required to use voice input.", variant: "destructive" });
                 return;
             }
-            // If 'prompt', starting recognition will trigger the browser's permission dialog.
         }
       }
       speechRecognitionRef.current.start();
@@ -186,8 +202,8 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
         setMicError("Microphone permission denied. Please enable it in your browser settings.");
         toast({ title: "Permission Denied", description: "Microphone access is required.", variant: "destructive" });
       } else {
-        setMicError("Could not start voice input. Please try again.");
-        toast({ title: "Mic Error", description: `Could not start voice input: ${error.message}`, variant: "destructive" });
+        setMicError(`Could not start voice input: ${error.message || 'Please try again.'}`);
+        toast({ title: "Mic Error", description: `Could not start voice input: ${error.message || 'Please try again.'}`, variant: "destructive" });
       }
       setIsListening(false);
     }
@@ -198,6 +214,10 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
       speechRecognitionRef.current.stop(); 
     }
     performSubmit(data); 
+  };
+
+  const handleClearPromptIdea = () => {
+    setValue('promptIdea', '', { shouldValidate: true, shouldDirty: true });
   };
   
 
@@ -219,22 +239,37 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
                 className="min-h-[120px] text-base flex-grow"
                 aria-invalid={errors.promptIdea ? "true" : "false"}
               />
-              {speechApiSupported && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={handleMicClick}
-                  disabled={isLoadingPrompt || (!speechApiSupported)}
-                  title={isListening ? "Stop listening" : "Use microphone"}
-                  className={isListening ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
-                >
-                  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                  <span className="sr-only">{isListening ? "Stop listening" : "Use microphone"}</span>
-                </Button>
-              )}
+              <div className="flex flex-col gap-2">
+                {speechApiSupported && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleMicClick}
+                    disabled={isLoadingPrompt || (!speechApiSupported)}
+                    title={isListening ? "Stop listening" : "Use microphone"}
+                    className={isListening ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+                  >
+                    {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                    <span className="sr-only">{isListening ? "Stop listening" : "Use microphone"}</span>
+                  </Button>
+                )}
+                {promptIdeaValue && promptIdeaValue.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleClearPromptIdea}
+                    disabled={isLoadingPrompt}
+                    title="Clear prompt idea"
+                  >
+                    <X className="h-5 w-5" />
+                    <span className="sr-only">Clear prompt idea</span>
+                  </Button>
+                )}
+              </div>
             </div>
-            {errors.promptIdea && <p className="text-sm text-destructive mt-1">{errors.promptIdea.message}</p>}
+            {errors.promptIdea && errors.promptIdea.message && <p className="text-sm text-destructive mt-1">{errors.promptIdea.message}</p>}
             {!speechApiSupported && (
                  <Alert variant="default" className="mt-2">
                     <MicOff className="h-4 w-4" />
@@ -343,3 +378,5 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
 export default PromptInputForm;
 
     
+
+      
