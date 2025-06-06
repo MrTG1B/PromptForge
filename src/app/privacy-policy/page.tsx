@@ -1,7 +1,9 @@
 // src/app/privacy-policy/page.tsx
 import type { Metadata } from 'next';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ShieldCheck, Home } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy - PromptForge',
@@ -133,6 +135,14 @@ export default function PrivacyPolicyPage() {
             <strong>Important:</strong> This is a template and should not be considered legal advice. Consult with a legal professional to ensure your privacy policy is compliant with all applicable laws and regulations for your specific services and user base.
           </p>
         </CardContent>
+        <CardFooter className="flex justify-center pt-4">
+          <Link href="/" passHref>
+            <Button variant="outline">
+              <Home className="mr-2 h-4 w-4" />
+              Back to Home
+            </Button>
+          </Link>
+        </CardFooter>
       </Card>
     </div>
   );

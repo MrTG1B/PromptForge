@@ -1,8 +1,9 @@
 // src/app/terms-and-conditions/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileText } from 'lucide-react'; // Icon for terms
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { FileText, Home } from 'lucide-react'; // Icon for terms
 
 export const metadata: Metadata = {
   title: 'Terms and Conditions - PromptForge',
@@ -103,6 +104,14 @@ export default function TermsAndConditionsPage() {
             <strong>Important:</strong> This is a template and should not be considered legal advice. Consult with a legal professional to ensure your Terms and Conditions are compliant and appropriate for your specific services.
           </p>
         </CardContent>
+        <CardFooter className="flex justify-center pt-4">
+          <Link href="/" passHref>
+            <Button variant="outline">
+              <Home className="mr-2 h-4 w-4" />
+              Back to Home
+            </Button>
+          </Link>
+        </CardFooter>
       </Card>
     </div>
   );
