@@ -16,16 +16,16 @@ export const metadata: Metadata = {
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
-    icon: `${siteUrl}/promptforge-logo.png`, // Explicitly absolute
+    icon: '/promptforge-logo.png', // Relative path
   },
   openGraph: {
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    url: siteUrl,
+    url: siteUrl, // Keep absolute for the site URL itself
     siteName: 'PromptForge',
     images: [
       {
-        url: `${siteUrl}/promptforge-og.png`, // Explicitly absolute
+        url: '/promptforge-og.png', // Relative path
         width: 1200,
         height: 630,
         alt: 'PromptForge Social Sharing Image',
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     description: 'AI-powered prompt generation and refinement tool.',
     images: [
       {
-        url: `${siteUrl}/promptforge-og.png`, // Explicitly absolute
+        url: '/promptforge-og.png', // Relative path
         width: 1200,
         height: 630,
         alt: 'PromptForge Social Sharing Image',
