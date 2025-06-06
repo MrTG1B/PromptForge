@@ -71,7 +71,7 @@ export default function PrivacyPolicyPage() {
                 <strong>By Law or to Protect Rights:</strong> If we believe the release of information about you is necessary to respond to legal process, to investigate or remedy potential violations of our policies, or to protect the rights, property, and safety of others, we may share your information as permitted or required by any applicable law, rule, or regulation.
               </li>
               <li>
-                <strong>Third-Party Service Providers:</strong> We may share your information with third parties that perform services for us or on our behalf, including payment processing, data analysis, email delivery, hosting services, customer service, and marketing assistance. (e.g., Google for authentication, Vercel for hosting and analytics, Facebook for authentication).
+                <strong>Third-Party Service Providers:</strong> We may share your information with third parties that perform services for us or on our behalf, including payment processing, data analysis, email delivery, hosting services, customer service, and marketing assistance. (e.g., Google for authentication and reCAPTCHA, Vercel for hosting and analytics, Facebook for authentication).
               </li>
               <li>
                 <strong>AI Model Providers:</strong> Prompts and related inputs you provide may be sent to third-party AI model providers (e.g., Google AI/Gemini) to generate responses. These providers have their own privacy policies regarding data handling.
@@ -81,9 +81,9 @@ export default function PrivacyPolicyPage() {
           </section>
           
           <section>
-            <h2 className="text-2xl font-semibold mb-3 text-primary">5. Tracking Technologies</h2>
+            <h2 className="text-2xl font-semibold mb-3 text-primary">5. Tracking Technologies and Service Protection</h2>
              <p>
-              We may use cookies, web beacons, tracking pixels, and other tracking technologies on the Application to help customize the Application and improve your experience.
+              We may use cookies, web beacons, tracking pixels, and other tracking technologies on the Application to help customize the Application and improve your experience. We also use services to protect our application from abuse.
             </p>
              <ul className="list-disc list-inside ml-4 space-y-1 mt-2">
                 <li>
@@ -94,6 +94,9 @@ export default function PrivacyPolicyPage() {
                 </li>
                 <li>
                     <strong>Facebook SDK:</strong> May use cookies or pixels for analytics and ad tracking purposes if you interact with Facebook login or ads.
+                </li>
+                <li>
+                  <strong>Google reCAPTCHA:</strong> To protect our services from spam and abuse, this site uses Google reCAPTCHA. Your use of reCAPTCHA is subject to the Google <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">Privacy Policy</a> and <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">Terms of Service</a>.
                 </li>
             </ul>
           </section>

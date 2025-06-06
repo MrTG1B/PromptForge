@@ -109,3 +109,8 @@
     @apply bg-background text-foreground font-body antialiased;
   }
 }
+
+/* Hide Google reCAPTCHA badge */
+.grecaptcha-badge {
+  visibility: hidden !important;
+}
