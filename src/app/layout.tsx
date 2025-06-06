@@ -11,6 +11,28 @@ export const metadata: Metadata = {
   icons: {
     icon: '/promptforge-logo.png',
   },
+  openGraph: {
+    title: 'PromptForge',
+    description: 'AI-powered prompt generation and refinement tool.',
+    url: 'https://your-app-url.com', // It's good practice to set your app's canonical URL here
+    siteName: 'PromptForge',
+    images: [
+      {
+        url: '/promptforge-og.png', // Path to your OG image in the public folder
+        width: 1200, // Replace with your image's actual width
+        height: 630, // Replace with your image's actual height
+        alt: 'PromptForge Social Sharing Image',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PromptForge',
+    description: 'AI-powered prompt generation and refinement tool.',
+    images: ['/promptforge-og.png'], // Path to your OG image
+  },
 };
 
 export default function RootLayout({
