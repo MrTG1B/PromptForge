@@ -6,8 +6,11 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/Header';
 import { Analytics } from "@vercel/analytics/next";
+import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
 
 const siteUrl = 'https://prompt-forge-blond.vercel.app';
+const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -76,13 +79,15 @@ export default function RootLayout({
           strategy="lazyOnload"
           id="facebook-jssdk"
         />
-        <AuthProvider>
-          <Header />
-          <main className="flex-grow container mx-auto px-4 py-8">
-            {children}
-          </main>
-          <Toaster />
-        </AuthProvider>
+        <GoogleReCaptchaProvider reCaptchaKey={recaptchaSiteKey || "NO_RECAPTCHA_KEY_DEFINED"}>
+          <AuthProvider>
+            <Header />
+            <main className="flex-grow container mx-auto px-4 py-8">
+              {children}
+            </main>
+            <Toaster />
+          </AuthProvider>
+        </GoogleReCaptchaProvider>
         <Analytics />
       </body>
     </html>

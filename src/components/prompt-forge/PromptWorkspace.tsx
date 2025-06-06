@@ -9,6 +9,7 @@ import type { SuggestParametersOutput } from '@/ai/flows/suggest-parameters';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 const PromptWorkspace: React.FC = () => {
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
@@ -17,17 +18,51 @@ const PromptWorkspace: React.FC = () => {
   const [suggestedParameters, setSuggestedParameters] = useState<SuggestParametersOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { executeRecaptcha } = useGoogleReCaptcha();
+
+  const getRecaptchaToken = async (actionName: string): Promise<string | null> => {
+    if (!executeRecaptcha) {
+      toast({
+        title: "reCAPTCHA Error",
+        description: "reCAPTCHA not available. Please try again later.",
+        variant: "destructive",
+      });
+      return null;
+    }
+    try {
+      const token = await executeRecaptcha(actionName);
+      return token;
+    } catch (err) {
+      console.error("reCAPTCHA execution error:", err);
+      toast({
+        title: "reCAPTCHA Error",
+        description: "Failed to execute reCAPTCHA. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
 
   const handleSubmitPrompt = async (data: PromptFormValues) => {
     setIsLoadingPrompt(true);
     setError(null);
     setGeneratedPrompt(null); // Clear previous prompt
+
+    const recaptchaToken = await getRecaptchaToken('refine_prompt');
+    if (!recaptchaToken) {
+      setIsLoadingPrompt(false);
+      return;
+    }
+
     try {
       const result = await handleRefinePromptAction({
-        promptIdea: data.promptIdea,
-        style: data.style,
-        length: data.length,
-        tone: data.tone,
+        input: {
+          promptIdea: data.promptIdea,
+          style: data.style,
+          length: data.length,
+          tone: data.tone,
+        },
+        recaptchaToken,
       });
       setGeneratedPrompt(result.refinedPrompt);
       
@@ -36,7 +71,6 @@ const PromptWorkspace: React.FC = () => {
         description: "Your new prompt has been successfully generated.",
       });
 
-      // Auto-copy logic
       if (result.refinedPrompt) {
         try {
           await navigator.clipboard.writeText(result.refinedPrompt);
@@ -47,12 +81,6 @@ const PromptWorkspace: React.FC = () => {
           });
         } catch (copyError) {
           console.error("Auto-copy failed:", copyError);
-          // Optional: show a toast if auto-copy fails, but primary success toast is already shown.
-          // toast({
-          //   title: "Auto-Copy Failed",
-          //   description: "Could not automatically copy prompt. You can copy it manually.",
-          //   variant: "destructive",
-          // });
         }
       }
 
@@ -73,8 +101,18 @@ const PromptWorkspace: React.FC = () => {
     setIsLoadingSuggestions(true);
     setError(null);
     setSuggestedParameters(null);
+
+    const recaptchaToken = await getRecaptchaToken('suggest_parameters');
+    if (!recaptchaToken) {
+      setIsLoadingSuggestions(false);
+      return null;
+    }
+
     try {
-      const result = await handleSuggestParametersAction({ basicPrompt: promptIdea });
+      const result = await handleSuggestParametersAction({ 
+        input: { basicPrompt: promptIdea },
+        recaptchaToken,
+      });
       setSuggestedParameters(result);
       toast({
         title: "Parameters Suggested!",
@@ -91,7 +129,7 @@ const PromptWorkspace: React.FC = () => {
                 <p className="mt-2 pt-2 border-t border-border"><span className="font-semibold">Reasoning:</span> {result.reasoning}</p>
             </div>
             ),
-            duration: 10000, // Longer duration for reading
+            duration: 10000, 
         });
       }
       return result;
