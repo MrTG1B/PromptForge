@@ -19,11 +19,20 @@ interface RecaptchaVerificationResponse {
 
 async function verifyRecaptchaToken(token: string, remoteIp?: string): Promise<boolean> {
   if (!RECAPTCHA_SECRET_KEY) {
-    console.error("reCAPTCHA secret key not configured. Skipping verification (unsafe for production).");
-    // In a real production scenario, you might want to fail hard here or have a stricter policy.
-    // For development or if key is missing, we can bypass for now.
-    // return false; // Or true if you want to allow in dev without key
-    return process.env.NODE_ENV === 'development'; // Allow in dev, fail in prod if key missing
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        "DEVELOPMENT MODE: reCAPTCHA secret key (RECAPTCHA_SECRET_KEY) is not configured in your environment variables. " +
+        "Skipping reCAPTCHA verification. THIS IS UNSAFE FOR PRODUCTION. " +
+        "Ensure RECAPTCHA_SECRET_KEY is set in your .env.local file for local development."
+      );
+      return true; // Bypass in development if key is missing
+    } else {
+      console.error(
+        "PRODUCTION MODE: reCAPTCHA secret key (RECAPTCHA_SECRET_KEY) is not configured. " +
+        "Verification will fail. Set this environment variable in your deployment settings (e.g., Vercel)."
+      );
+      return false; // Fail in production if key is missing
+    }
   }
 
   const formData = new URLSearchParams();
@@ -41,31 +50,32 @@ async function verifyRecaptchaToken(token: string, remoteIp?: string): Promise<b
 
     if (!response.ok) {
       console.error(`reCAPTCHA verification request failed: ${response.statusText}`);
+      const errorBody = await response.text();
+      console.error("Error body from reCAPTCHA server:", errorBody);
       return false;
     }
 
     const result = await response.json() as RecaptchaVerificationResponse;
 
     if (!result.success) {
-      console.warn("reCAPTCHA verification unsuccessful:", result["error-codes"]?.join(", ") || "Unknown error");
+      console.warn("reCAPTCHA verification unsuccessful. Error codes:", result["error-codes"]?.join(", ") || "Unknown error from reCAPTCHA service.");
       return false;
     }
     
-    // For reCAPTCHA v3, check the score
     if (result.score === undefined) {
         console.warn("reCAPTCHA v3 score not present in response. Treating as failed verification.");
-        return false; // If score is not present, something is wrong
+        return false;
     }
 
     if (result.score < RECAPTCHA_SCORE_THRESHOLD) {
-      console.warn(`reCAPTCHA score too low: ${result.score} (action: ${result.action})`);
+      console.warn(`reCAPTCHA score too low: ${result.score} (action: ${result.action}). Verification failed.`);
       return false;
     }
 
     // console.log(`reCAPTCHA verified successfully. Score: ${result.score}, Action: ${result.action}`);
     return true;
   } catch (error) {
-    console.error("Error during reCAPTCHA verification:", error);
+    console.error("Error during reCAPTCHA verification request execution:", error);
     return false;
   }
 }
@@ -76,7 +86,8 @@ export async function handleRefinePromptAction(params: { input: RefinePromptInpu
 
   const isHuman = await verifyRecaptchaToken(recaptchaToken);
   if (!isHuman) {
-    throw new Error("reCAPTCHA verification failed. Please try again.");
+    // The error from verifyRecaptchaToken (console.warn/error) will provide more context.
+    throw new Error("reCAPTCHA verification failed. Please ensure you're not a robot or try again later.");
   }
 
   try {
@@ -96,7 +107,8 @@ export async function handleSuggestParametersAction(params: { input: SuggestPara
 
   const isHuman = await verifyRecaptchaToken(recaptchaToken);
   if (!isHuman) {
-    throw new Error("reCAPTCHA verification failed. Please try again.");
+    // The error from verifyRecaptchaToken (console.warn/error) will provide more context.
+    throw new Error("reCAPTCHA verification failed. Please ensure you're not a robot or try again later.");
   }
 
   try {
