@@ -91,11 +91,10 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
             .map(result => result.transcript)
             .join('');
           setValue('promptIdea', transcript, { shouldValidate: true });
-
-          if (transcript.trim().length > 0 && !isLoadingPrompt) {
-            // Auto-submit the form
-            handleSubmit(performSubmit)();
-          }
+          // Removed automatic form submission:
+          // if (transcript.trim().length > 0 && !isLoadingPrompt) {
+          //   handleSubmit(performSubmit)();
+          // }
         };
         instance.onerror = (event) => {
           let errorMessage = 'Speech recognition error.';
@@ -125,16 +124,11 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
         speechRecognitionRef.current.onend = null;
         speechRecognitionRef.current.onresult = null;
         speechRecognitionRef.current.onerror = null;
-        if (isListening) { // Check current state, though onend should handle this
+        if (isListening) { 
           speechRecognitionRef.current.stop();
         }
       }
     };
-  // Dependencies: `setValue` and `toast` are stable. `handleSubmit` from RHF is stable.
-  // `performSubmit` changes if `onSubmitPrompt` or `includeParameters` changes.
-  // `speechApiSupported` and `micPermissionGranted` are included as they affect setup.
-  // `isListening` is added for robust cleanup if the effect re-runs while listening.
-  // `isLoadingPrompt` added to `onresult` check.
   }, [setValue, toast, speechApiSupported, micPermissionGranted, handleSubmit, performSubmit, isListening, isLoadingPrompt]);
 
   const handleMicClick = async () => {
@@ -145,7 +139,6 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
 
     if (isListening) {
       speechRecognitionRef.current.stop();
-      // onend will set setIsListening(false)
       return;
     }
 
@@ -182,12 +175,11 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
     }
   };
 
-  // Handler for manual form submission (e.g., clicking the button)
   const onManualFormSubmit: SubmitHandler<PromptFormValues> = (data) => {
     if (isListening && speechRecognitionRef.current) {
-      speechRecognitionRef.current.stop(); // Stop listening if manual submit happens while mic is on
+      speechRecognitionRef.current.stop(); 
     }
-    performSubmit(data); // Use the memoized submit handler
+    performSubmit(data); 
   };
   
 
@@ -331,3 +323,4 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
 };
 
 export default PromptInputForm;
+
