@@ -49,7 +49,7 @@ export default function RootLayout({
               FB.init({
                 appId: '${facebookAppId}', // Use the constant directly
                 cookie: true,
-                xfbml: true,
+                xfbml: false, // Changed to false: Only using SDK for login, not social plugins
                 version: 'v20.0' // Using a recent API version
               });
               // FB.AppEvents.logPageView(); // Removed: Logs page views automatically
