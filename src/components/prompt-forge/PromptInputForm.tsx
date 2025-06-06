@@ -12,12 +12,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Send, Mic, MicOff, X } from 'lucide-react'; // Added X icon
+import { Loader2, Send, Mic, MicOff, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
-  promptIdea: z.string().min(10, "Prompt idea must be at least 10 characters.").or(z.literal("")), // Allow empty string for clearing
+  promptIdea: z.string().min(10, "Prompt idea must be at least 10 characters.").or(z.literal("")),
   style: z.string().optional(),
   length: z.string().optional(),
   tone: z.string().optional(),
@@ -38,7 +38,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
   onSubmitPrompt,
   isLoadingPrompt,
 }) => {
-  const { register, handleSubmit, control, formState: { errors }, setValue, watch } = useForm<PromptFormValues>({
+  const { register, handleSubmit, control, formState: { errors }, setValue, watch, getValues } = useForm<PromptFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       promptIdea: '',
@@ -58,19 +58,20 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
   const [micPermissionGranted, setMicPermissionGranted] = useState<boolean | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
 
-  const promptIdeaValue = watch("promptIdea"); // Watch the value of promptIdea
+  const promptIdeaValue = watch("promptIdea");
 
   const performSubmit = useCallback((data: PromptFormValues) => {
-     if (data.promptIdea.length < 10 && data.promptIdea.length > 0) {
+     if (data.promptIdea.length > 0 && data.promptIdea.length < 10) {
         toast({
             title: "Prompt Too Short",
-            description: "Please enter a prompt idea that is at least 10 characters long or clear the field.",
+            description: "Please enter a prompt idea that is at least 10 characters long, or clear the field if you don't want to submit it.",
             variant: "destructive",
         });
         return;
     }
     onSubmitPrompt(data, includeParameters);
   }, [onSubmitPrompt, includeParameters, toast]);
+
 
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
@@ -79,14 +80,14 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
   useEffect(() => {
     if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognitionAPI && !speechRecognitionRef.current) {
+      if (SpeechRecognitionAPI) {
         const instance = new SpeechRecognitionAPI();
         instance.continuous = false;
         instance.interimResults = false;
         instance.lang = 'en-US';
         speechRecognitionRef.current = instance;
         setSpeechApiSupported(true);
-      } else if (!SpeechRecognitionAPI) {
+      } else {
         setSpeechApiSupported(false);
       }
     } else {
@@ -122,6 +123,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
         .map(result => result.transcript)
         .join('');
       setValue('promptIdea', transcript, { shouldValidate: true, shouldDirty: true });
+      // Automatic submission removed as per user request
     };
 
     const handleSpeechError = (event: SpeechRecognitionErrorEvent) => {
@@ -143,6 +145,8 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
         errorMessage = 'Speech recognition service is not allowed. This might be a browser or system policy.';
       } else if (event.error === 'bad-grammar') {
         errorMessage = 'There was an issue with the speech recognition grammar.';
+      } else {
+        errorMessage = `An unknown speech error occurred: ${event.error}`;
       }
       setMicError(errorMessage);
       toast({ title: "Microphone Error", description: errorMessage, variant: "destructive" });
@@ -193,9 +197,13 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
                 toast({ title: "Permission Denied", description: "Microphone access is required to use voice input.", variant: "destructive" });
                 return;
             }
+            // If 'prompt', we let the browser ask. If it was 'granted' or 'denied' already, we've handled it.
         }
       }
-      speechRecognitionRef.current.start();
+      // Proceed to start listening if permission is granted or still prompt (browser will ask)
+      if (micPermissionGranted !== false) {
+        speechRecognitionRef.current.start();
+      }
     } catch (error: any) {
       if (error.name === 'NotAllowedError' || (error.message && error.message.includes('Permission denied'))) {
         setMicPermissionGranted(false);
@@ -231,7 +239,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
         <form onSubmit={handleSubmit(onManualFormSubmit)} className="space-y-6">
           <div>
             <Label htmlFor="promptIdea" className="text-lg font-semibold">Your Prompt Idea</Label>
-            <div className="mt-1 flex items-center gap-2">
+            <div className="mt-1 flex items-start gap-2"> {/* Changed items-center to items-start */}
               <Textarea
                 id="promptIdea"
                 {...register("promptIdea")}
@@ -239,7 +247,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
                 className="min-h-[120px] text-base flex-grow"
                 aria-invalid={errors.promptIdea ? "true" : "false"}
               />
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col space-y-2">
                 {speechApiSupported && (
                   <Button
                     type="button"
@@ -258,7 +266,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
                   <Button
                     type="button"
                     variant="outline"
-                    size="icon"
+                    size="icon" // Ensure size is icon
                     onClick={handleClearPromptIdea}
                     disabled={isLoadingPrompt}
                     title="Clear prompt idea"
@@ -376,7 +384,6 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
 };
 
 export default PromptInputForm;
-
     
 
-      
+    
