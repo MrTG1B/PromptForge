@@ -82,7 +82,7 @@ export default function TermsAndConditionsPage() {
           <section>
             <h2 className="text-2xl font-semibold mb-3 text-primary">7. Governing Law</h2>
             <p>
-              These Terms shall be governed and construed in accordance with the laws of [Your Jurisdiction, e.g., State of California, USA], without regard to its conflict of law provisions.
+              These Terms shall be governed and construed in accordance with the laws of Kolkata, West Bengal, India, without regard to its conflict of law provisions.
             </p>
           </section>
 
@@ -116,3 +116,4 @@ export default function TermsAndConditionsPage() {
     </div>
   );
 }
+
