@@ -14,13 +14,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    url: 'https://prompt-forge-blond.vercel.app', // It's good practice to set your app's canonical URL here
+    url: 'https://prompt-forge-blond.vercel.app', // Ensure this is your live app's URL
     siteName: 'PromptForge',
     images: [
       {
-        url: '/promptforge-og.png', // Path to your OG image in the public folder
-        width: 2000, // Replace with your image's actual width
-        height: 1500, // Replace with your image's actual height
+        url: '/promptforge-og.png', // Should be in the public folder
+        width: 1200, // Standard OG image width
+        height: 630, // Standard OG image height
         alt: 'PromptForge Social Sharing Image',
       },
     ],
