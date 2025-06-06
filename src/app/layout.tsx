@@ -7,28 +7,28 @@ import { Analytics } from "@vercel/analytics/next";
 import GlobalProviders from '@/components/providers/GlobalProviders';
 
 const siteUrl = 'https://prompt-forge-blond.vercel.app';
-const facebookAppId = '1663861460968287';
-const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+const facebookAppId = '1663861460968287'; // This is used for FB.init
+const recaptchaSiteKeyFromEnv = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 
 const ogImageUrl = `${siteUrl}/promptforge-og.png`;
 
-if (!recaptchaSiteKey || recaptchaSiteKey === "your_actual_recaptcha_site_key_here" || (typeof recaptchaSiteKey === 'string' && recaptchaSiteKey.startsWith("NEXT_PUBLIC_"))) {
+// More robust check for the reCAPTCHA site key
+if (!recaptchaSiteKeyFromEnv || recaptchaSiteKeyFromEnv === "your_actual_recaptcha_site_key_here") {
   console.error(
-    "SERVER-SIDE WARNING: NEXT_PUBLIC_RECAPTCHA_SITE_KEY is not configured or is a placeholder. " +
-    "reCAPTCHA will not function correctly. " +
-    "Please set this environment variable in your .env.local file (e.g., NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_actual_site_key) " +
-    "and in your Vercel project's environment variable settings. " +
-    "After updating .env.local, restart your development server."
+    "SERVER-SIDE CRITICAL WARNING: NEXT_PUBLIC_RECAPTCHA_SITE_KEY is not configured or is still the placeholder value 'your_actual_recaptcha_site_key_here'. " +
+    "reCAPTCHA will NOT function. " +
+    "1. For local development: Ensure this key is set in your .env.local file (e.g., NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_real_site_key) AND RESTART your dev server. " +
+    "2. For Vercel/deployment: Ensure this environment variable is set in your Vercel project's settings and a new deployment is triggered. " +
+    "The current value read from environment is: '" + recaptchaSiteKeyFromEnv + "'"
   );
 }
-
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
-    icon: '/promptforge-og.png',
+    icon: '/promptforge-og.png', // Relative path
   },
   openGraph: {
     title: 'PromptForge',
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     siteName: 'PromptForge',
     images: [
       {
-        url: ogImageUrl,
+        url: ogImageUrl, // Absolute URL
         width: 1200,
         height: 630,
         alt: 'PromptForge Social Sharing Image',
@@ -50,9 +50,9 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    images: [
+    images: [ // Ensure this structure is an array of objects for consistency
       {
-        url: ogImageUrl,
+        url: ogImageUrl, // Absolute URL
         alt: 'PromptForge Twitter Image',
       }
     ],
@@ -67,6 +67,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Pass the key from environment, or a specific string if it's undefined/empty
+  const keyToPassToProvider = recaptchaSiteKeyFromEnv || "KEY_WAS_UNDEFINED_IN_LAYOUT";
+
   return (
     <html lang="en">
       <head>
@@ -89,9 +92,10 @@ export default function RootLayout({
               FB.init({
                 appId: '${facebookAppId}',
                 cookie: true,
-                xfbml: false,
+                xfbml: false, // Set to false if not using XFBML social plugins
                 version: 'v20.0'
               });
+              // FB.AppEvents.logPageView(); // Removed as per previous request
             };
           `}
         </Script>
@@ -103,7 +107,7 @@ export default function RootLayout({
           strategy="lazyOnload"
           id="facebook-jssdk"
         />
-        <GlobalProviders recaptchaSiteKey={recaptchaSiteKey || "PLACEHOLDER_SITE_KEY_FROM_LAYOUT"}>
+        <GlobalProviders recaptchaSiteKey={keyToPassToProvider}>
           {children}
         </GlobalProviders>
         <Analytics />

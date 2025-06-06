@@ -3,36 +3,40 @@
 "use client";
 
 import type React from 'react';
-import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3'; // Added import
+import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/Header';
 
 interface GlobalProvidersProps {
   children: React.ReactNode;
-  recaptchaSiteKey: string; // Expecting a string, even if it's a placeholder
+  recaptchaSiteKey: string; // This is the prop passed from layout.tsx
 }
 
-export default function GlobalProviders({ children, recaptchaSiteKey }: GlobalProvidersProps) {
-  // Use the provided key or the specific placeholder if it's still one of the known bad values
-  const siteKeyForProvider = recaptchaSiteKey && 
-                             recaptchaSiteKey !== "PLACEHOLDER_SITE_KEY_FROM_LAYOUT" &&
-                             recaptchaSiteKey !== "your_actual_recaptcha_site_key_here" &&
-                             !recaptchaSiteKey.startsWith("NEXT_PUBLIC_")
-                             ? recaptchaSiteKey 
-                             : "NO_RECAPTCHA_KEY_LOADED_CHECK_ENV";
+const KNOWN_BAD_PLACEHOLDER_LAYOUT = "KEY_WAS_UNDEFINED_IN_LAYOUT";
+const KNOWN_BAD_PLACEHOLDER_ENV = "your_actual_recaptcha_site_key_here";
+const FALLBACK_KEY_FOR_PROVIDER = "PROVIDER_RECEIVED_INVALID_KEY_CHECK_CONSOLE";
 
-  if (siteKeyForProvider === "NO_RECAPTCHA_KEY_LOADED_CHECK_ENV") {
+export default function GlobalProviders({ children, recaptchaSiteKey: recaptchaSiteKeyProp }: GlobalProvidersProps) {
+  let siteKeyForReCaptchaProvider: string;
+
+  if (recaptchaSiteKeyProp && 
+      recaptchaSiteKeyProp !== KNOWN_BAD_PLACEHOLDER_LAYOUT &&
+      recaptchaSiteKeyProp !== KNOWN_BAD_PLACEHOLDER_ENV) {
+    siteKeyForReCaptchaProvider = recaptchaSiteKeyProp;
+  } else {
+    siteKeyForReCaptchaProvider = FALLBACK_KEY_FOR_PROVIDER; // This key will cause reCAPTCHA to fail, but prevents a crash
     console.error(
-      "CLIENT-SIDE reCAPTCHA ERROR: The reCAPTCHA Site Key is effectively missing or a placeholder ('" + recaptchaSiteKey + "'). " +
-      "The GoogleReCaptchaProvider received '" + siteKeyForProvider + "'. " +
-      "This means NEXT_PUBLIC_RECAPTCHA_SITE_KEY was not properly set in your environment variables (.env.local or Vercel settings). " +
-      "reCAPTCHA functionality will fail. Please verify your configuration and restart your development server if using .env.local."
+      `CLIENT-SIDE CRITICAL reCAPTCHA ERROR: The reCAPTCHA Site Key received by GlobalProviders is invalid. ` +
+      `It was '${recaptchaSiteKeyProp}'. This usually means NEXT_PUBLIC_RECAPTCHA_SITE_KEY was not properly set in your environment variables ` +
+      `(.env.local or Vercel/deployment settings) OR it's still a placeholder. ` +
+      `reCAPTCHA functionality WILL FAIL. Please verify your configuration. ` +
+      `The key being passed to GoogleReCaptchaProvider will be '${FALLBACK_KEY_FOR_PROVIDER}'.`
     );
   }
 
   return (
-    <GoogleReCaptchaProvider reCaptchaKey={siteKeyForProvider}>
+    <GoogleReCaptchaProvider reCaptchaKey={siteKeyForReCaptchaProvider}>
       <AuthProvider>
         <Header />
         <main className="flex-grow container mx-auto px-4 py-8">
