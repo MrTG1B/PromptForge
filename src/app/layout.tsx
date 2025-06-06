@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     type: 'website',
     // Add your Facebook App ID here
     // You can get one from https://developers.facebook.com/apps/
-    appId: 'YOUR_FACEBOOK_APP_ID', 
+    appId: '750845667265576', 
   },
   twitter: {
     card: 'summary_large_image',
