@@ -8,6 +8,9 @@ import Header from '@/components/layout/Header';
 export const metadata: Metadata = {
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
+  icons: {
+    icon: '/promptforge-logo.png',
+  },
 };
 
 export default function RootLayout({
