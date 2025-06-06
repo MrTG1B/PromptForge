@@ -2,7 +2,7 @@
 // src/components/prompt-forge/PromptInputForm.tsx
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'; // Added useCallback
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -52,65 +52,32 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
   const [includeParameters, setIncludeParameters] = useState(true);
   const { toast } = useToast();
 
-  // Speech Recognition State
+  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [speechApiSupported, setSpeechApiSupported] = useState(false);
   const [micPermissionGranted, setMicPermissionGranted] = useState<boolean | null>(null);
-  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
 
-  // Memoized core submission logic
   const performSubmit = useCallback((data: PromptFormValues) => {
     onSubmitPrompt(data, includeParameters);
   }, [onSubmitPrompt, includeParameters]);
 
-
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
+  }, []);
 
+  // Effect to initialize and cleanup SpeechRecognition instance
+  useEffect(() => {
     if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognitionAPI) {
+      if (SpeechRecognitionAPI && !speechRecognitionRef.current) {
         const instance = new SpeechRecognitionAPI();
-        instance.continuous = false; // Stop after user pauses
-        instance.interimResults = false; // Only final results
+        instance.continuous = false;
+        instance.interimResults = false;
         instance.lang = 'en-US';
         speechRecognitionRef.current = instance;
         setSpeechApiSupported(true);
-
-        instance.onstart = () => {
-          setIsListening(true);
-          setMicError(null);
-        };
-        instance.onend = () => {
-          setIsListening(false);
-        };
-        instance.onresult = (event) => {
-          const transcript = Array.from(event.results)
-            .map(result => result[0])
-            .map(result => result.transcript)
-            .join('');
-          setValue('promptIdea', transcript, { shouldValidate: true });
-          // Removed automatic form submission:
-          // if (transcript.trim().length > 0 && !isLoadingPrompt) {
-          //   handleSubmit(performSubmit)();
-          // }
-        };
-        instance.onerror = (event) => {
-          let errorMessage = 'Speech recognition error.';
-          if (event.error === 'no-speech') {
-            errorMessage = 'No speech detected. Please try again.';
-          } else if (event.error === 'audio-capture') {
-            errorMessage = 'Audio capture failed. Ensure your microphone is working.';
-          } else if (event.error === 'not-allowed') {
-            errorMessage = 'Microphone permission denied.';
-            setMicPermissionGranted(false);
-          }
-          setMicError(errorMessage);
-          toast({ title: "Microphone Error", description: errorMessage, variant: "destructive" });
-          setIsListening(false); // Ensure listening stops on error
-        };
-      } else {
+      } else if (!SpeechRecognitionAPI) {
         setSpeechApiSupported(false);
       }
     } else {
@@ -119,17 +86,66 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
 
     return () => {
       if (speechRecognitionRef.current) {
-        // Clean up listeners and stop recognition if active
-        speechRecognitionRef.current.onstart = null;
-        speechRecognitionRef.current.onend = null;
-        speechRecognitionRef.current.onresult = null;
-        speechRecognitionRef.current.onerror = null;
-        if (isListening) { 
-          speechRecognitionRef.current.stop();
-        }
+        speechRecognitionRef.current.stop(); // Stop if active on unmount
+        speechRecognitionRef.current = null; // Clear the ref
       }
     };
-  }, [setValue, toast, speechApiSupported, micPermissionGranted, handleSubmit, performSubmit, isListening, isLoadingPrompt]);
+  }, []); // Empty dependency array, runs once on mount and cleans up on unmount
+
+  // Effect to attach/detach event listeners
+  useEffect(() => {
+    const currentInstance = speechRecognitionRef.current;
+    if (!speechApiSupported || !currentInstance) {
+      return;
+    }
+
+    const handleSpeechStart = () => {
+      setIsListening(true);
+      setMicError(null);
+    };
+
+    const handleSpeechEnd = () => {
+      setIsListening(false);
+    };
+
+    const handleSpeechResult = (event: SpeechRecognitionEvent) => {
+      const transcript = Array.from(event.results)
+        .map(result => result[0])
+        .map(result => result.transcript)
+        .join('');
+      setValue('promptIdea', transcript, { shouldValidate: true });
+    };
+
+    const handleSpeechError = (event: SpeechRecognitionErrorEvent) => {
+      let errorMessage = 'Speech recognition error.';
+      if (event.error === 'no-speech') {
+        errorMessage = 'No speech detected. Please try again.';
+      } else if (event.error === 'audio-capture') {
+        errorMessage = 'Audio capture failed. Ensure your microphone is working.';
+      } else if (event.error === 'not-allowed') {
+        errorMessage = 'Microphone permission denied.';
+        setMicPermissionGranted(false);
+      }
+      setMicError(errorMessage);
+      toast({ title: "Microphone Error", description: errorMessage, variant: "destructive" });
+      setIsListening(false);
+    };
+
+    currentInstance.onstart = handleSpeechStart;
+    currentInstance.onend = handleSpeechEnd;
+    currentInstance.onresult = handleSpeechResult;
+    currentInstance.onerror = handleSpeechError;
+
+    return () => {
+      if (currentInstance) { // Check instance exists before trying to clear handlers
+        currentInstance.onstart = null;
+        currentInstance.onend = null;
+        currentInstance.onresult = null;
+        currentInstance.onerror = null;
+      }
+    };
+  }, [speechApiSupported, setValue, toast, setIsListening, setMicError, setMicPermissionGranted]);
+
 
   const handleMicClick = async () => {
     if (!speechApiSupported || !speechRecognitionRef.current) {
@@ -149,6 +165,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
     
     try {
       if (micPermissionGranted === null) {
+        // Attempt to query permission if not explicitly denied and not granted
         if (navigator.permissions) {
             const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
             if (permissionStatus.state === 'granted') {
@@ -159,17 +176,18 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
                 toast({ title: "Permission Denied", description: "Microphone access is required to use voice input.", variant: "destructive" });
                 return;
             }
+            // If 'prompt', starting recognition will trigger the browser's permission dialog.
         }
       }
       speechRecognitionRef.current.start();
     } catch (error: any) {
-      if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
+      if (error.name === 'NotAllowedError' || (error.message && error.message.includes('Permission denied'))) {
         setMicPermissionGranted(false);
         setMicError("Microphone permission denied. Please enable it in your browser settings.");
         toast({ title: "Permission Denied", description: "Microphone access is required.", variant: "destructive" });
       } else {
         setMicError("Could not start voice input. Please try again.");
-        toast({ title: "Mic Error", description: "Could not start voice input.", variant: "destructive" });
+        toast({ title: "Mic Error", description: `Could not start voice input: ${error.message}`, variant: "destructive" });
       }
       setIsListening(false);
     }
@@ -324,3 +342,4 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
 
 export default PromptInputForm;
 
+    
