@@ -8,7 +8,7 @@ import GlobalProviders from '@/components/providers/GlobalProviders';
 
 const siteUrl = 'https://prompt-forge-blond.vercel.app';
 const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
-const facebookAppId = '750845667265576'; // Define Facebook App ID as a constant
+const facebookAppId = '1663861460968287'; // Updated Facebook App ID
 
 
 export const metadata: Metadata = {
@@ -33,7 +33,6 @@ export const metadata: Metadata = {
     ],
     locale: 'en_US',
     type: 'website',
-    // appId property removed from here to fix TypeScript error
   },
   twitter: {
     card: 'summary_large_image',
@@ -48,7 +47,7 @@ export const metadata: Metadata = {
       }
     ],
   },
-  other: { // Add fb:app_id using the 'other' metadata property
+  other: { 
     'fb:app_id': facebookAppId,
   }
 };
