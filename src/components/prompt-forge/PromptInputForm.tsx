@@ -1,7 +1,8 @@
+
 // src/components/prompt-forge/PromptInputForm.tsx
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react'; // Added useCallback
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Send, Mic, MicOff } from 'lucide-react'; // Added Mic, MicOff
+import { Loader2, Send, Mic, MicOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -58,6 +59,11 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
 
+  // Memoized core submission logic
+  const performSubmit = useCallback((data: PromptFormValues) => {
+    onSubmitPrompt(data, includeParameters);
+  }, [onSubmitPrompt, includeParameters]);
+
 
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
@@ -66,8 +72,8 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognitionAPI) {
         const instance = new SpeechRecognitionAPI();
-        instance.continuous = false; // Should stop after user pauses
-        instance.interimResults = false;
+        instance.continuous = false; // Stop after user pauses
+        instance.interimResults = false; // Only final results
         instance.lang = 'en-US';
         speechRecognitionRef.current = instance;
         setSpeechApiSupported(true);
@@ -84,7 +90,12 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
             .map(result => result[0])
             .map(result => result.transcript)
             .join('');
-          setValue('promptIdea', transcript);
+          setValue('promptIdea', transcript, { shouldValidate: true });
+
+          if (transcript.trim().length > 0 && !isLoadingPrompt) {
+            // Auto-submit the form
+            handleSubmit(performSubmit)();
+          }
         };
         instance.onerror = (event) => {
           let errorMessage = 'Speech recognition error.';
@@ -98,7 +109,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
           }
           setMicError(errorMessage);
           toast({ title: "Microphone Error", description: errorMessage, variant: "destructive" });
-          setIsListening(false);
+          setIsListening(false); // Ensure listening stops on error
         };
       } else {
         setSpeechApiSupported(false);
@@ -109,10 +120,22 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
 
     return () => {
       if (speechRecognitionRef.current) {
-        speechRecognitionRef.current.stop();
+        // Clean up listeners and stop recognition if active
+        speechRecognitionRef.current.onstart = null;
+        speechRecognitionRef.current.onend = null;
+        speechRecognitionRef.current.onresult = null;
+        speechRecognitionRef.current.onerror = null;
+        if (isListening) { // Check current state, though onend should handle this
+          speechRecognitionRef.current.stop();
+        }
       }
     };
-  }, [setValue, toast]);
+  // Dependencies: `setValue` and `toast` are stable. `handleSubmit` from RHF is stable.
+  // `performSubmit` changes if `onSubmitPrompt` or `includeParameters` changes.
+  // `speechApiSupported` and `micPermissionGranted` are included as they affect setup.
+  // `isListening` is added for robust cleanup if the effect re-runs while listening.
+  // `isLoadingPrompt` added to `onresult` check.
+  }, [setValue, toast, speechApiSupported, micPermissionGranted, handleSubmit, performSubmit, isListening, isLoadingPrompt]);
 
   const handleMicClick = async () => {
     if (!speechApiSupported || !speechRecognitionRef.current) {
@@ -122,7 +145,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
 
     if (isListening) {
       speechRecognitionRef.current.stop();
-      setIsListening(false);
+      // onend will set setIsListening(false)
       return;
     }
 
@@ -159,13 +182,12 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
     }
   };
 
-
-  const handleFormSubmit: SubmitHandler<PromptFormValues> = (data) => {
+  // Handler for manual form submission (e.g., clicking the button)
+  const onManualFormSubmit: SubmitHandler<PromptFormValues> = (data) => {
     if (isListening && speechRecognitionRef.current) {
-      speechRecognitionRef.current.stop();
-      // The onend handler will set setIsListening(false)
+      speechRecognitionRef.current.stop(); // Stop listening if manual submit happens while mic is on
     }
-    onSubmitPrompt(data, includeParameters);
+    performSubmit(data); // Use the memoized submit handler
   };
   
 
@@ -176,7 +198,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
         <CardDescription>Describe what you need, and let our AI help you forge the ideal prompt.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onManualFormSubmit)} className="space-y-6">
           <div>
             <Label htmlFor="promptIdea" className="text-lg font-semibold">Your Prompt Idea</Label>
             <div className="mt-1 flex items-center gap-2">
