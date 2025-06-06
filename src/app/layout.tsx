@@ -23,6 +23,7 @@ if (!recaptchaSiteKeyFromEnv || recaptchaSiteKeyFromEnv === "your_actual_recaptc
   );
 }
 
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: 'PromptForge',
@@ -50,7 +51,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    images: [ // Ensure this structure is an array of objects for consistency
+    images: [ 
       {
         url: ogImageUrl, // Absolute URL
         alt: 'PromptForge Twitter Image',
@@ -68,7 +69,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   // Pass the key from environment, or a specific string if it's undefined/empty
-  const keyToPassToProvider = recaptchaSiteKeyFromEnv || "KEY_WAS_UNDEFINED_IN_LAYOUT";
+  const keyToPassToProvider = recaptchaSiteKeyFromEnv || "PLACEHOLDER_SITE_KEY_FROM_LAYOUT";
 
   return (
     <html lang="en">
@@ -80,7 +81,7 @@ export default function RootLayout({
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5029378704821021"
           crossOrigin="anonymous"
-          strategy="lazyOnload"
+          strategy="beforeInteractive"
           id="google-adsense-script"
         />
       </head>
@@ -92,10 +93,9 @@ export default function RootLayout({
               FB.init({
                 appId: '${facebookAppId}',
                 cookie: true,
-                xfbml: false, // Set to false if not using XFBML social plugins
+                xfbml: false, 
                 version: 'v20.0'
               });
-              // FB.AppEvents.logPageView(); // Removed as per previous request
             };
           `}
         </Script>
