@@ -14,7 +14,7 @@ export default function TermsAndConditionsPage() {
   const appName = "PromptForge";
   // IMPORTANT: Replace with your actual company name and contact information
   const companyName = "Lumen Labs"; 
-  const contactEmail = "support@yourdomain.com";
+  const contactEmail = "tirthankardasgupta913913@gmail.com";
   const effectiveDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
