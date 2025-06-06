@@ -12,12 +12,11 @@ const facebookAppId = '1663861460968287'; // Facebook App ID for login
 
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
     icon: '/promptforge-og.png', // Relative path
-  },
+  }
   // openGraph object has been completely removed
   // twitter object has been completely removed
   // 'other' for fb:app_id also removed
