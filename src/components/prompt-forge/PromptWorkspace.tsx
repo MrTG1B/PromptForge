@@ -55,16 +55,17 @@ const PromptWorkspace: React.FC = () => {
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
 
-      oscillator.type = 'triangle'; // Changed from 'sine' for a potentially "more beautiful" tone
-      oscillator.frequency.setValueAtTime(440, ctx.currentTime); // A4 note, slightly different pitch
-      gainNode.gain.setValueAtTime(0.4, ctx.currentTime); // Increased volume from 0.1
-      gainNode.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.5);
+      oscillator.type = 'triangle'; 
+      oscillator.frequency.setValueAtTime(440, ctx.currentTime); 
+      gainNode.gain.setValueAtTime(0.4, ctx.currentTime);
+      // Extended duration from 0.5 to 0.8 seconds
+      gainNode.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.8); 
 
       oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.5);
+      // Extended duration from 0.5 to 0.8 seconds
+      oscillator.stop(ctx.currentTime + 0.8);
     } catch (e) {
       console.error("Error playing sound:", e);
-      // If an error occurs, try to re-create context for next time if it's because it was closed.
       if (audioContextRef.current && audioContextRef.current.state === 'closed') {
           audioContextRef.current = new window.AudioContext();
       }
@@ -106,8 +107,6 @@ const PromptWorkspace: React.FC = () => {
   const handleSubmitPrompt = async (data: PromptFormValues, includeParameters: boolean) => {
     setIsLoadingPrompt(true);
     setError(null);
-    // Do not clear generatedPrompt here to allow seeing previous while new one loads.
-    // It's cleared in GeneratedPromptDisplay if isLoading is true and promptText is null.
 
     const recaptchaDetails = await getRecaptchaTokenAndAction('refine_prompt');
     if (!recaptchaDetails) {
@@ -146,14 +145,13 @@ const PromptWorkspace: React.FC = () => {
           });
         } catch (copyError) {
           console.error("Auto-copy failed:", copyError);
-          // Do not show error for auto-copy failing, it's a convenience.
         }
       }
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
       setError(errorMessage);
-      setGeneratedPrompt(null); // Clear prompt on error
+      setGeneratedPrompt(null); 
       toast({
         title: "Error Generating Prompt",
         description: errorMessage,
@@ -161,6 +159,8 @@ const PromptWorkspace: React.FC = () => {
       });
       if (errorMessage.includes("SERVER_CONFIG_ERROR") || errorMessage.includes("GCP_AUTHENTICATION_FAILURE") || errorMessage.includes("SERVER_ERROR") || errorMessage.includes("SECURITY_SERVICE_INIT_FAILURE")) {
         console.error("A critical server or security configuration error occurred:", errorMessage);
+      } else if (errorMessage.includes("GCP_AUTHENTICATION_FAILURE_INIT:")) {
+         console.error("A critical server or security configuration error occurred (GCP Auth Init):", errorMessage);
       }
     } finally {
       setIsLoadingPrompt(false);
@@ -185,7 +185,7 @@ const PromptWorkspace: React.FC = () => {
         promptText={generatedPrompt}
         isLoading={isLoadingPrompt}
         onRegenerate={() => {
-          if (generatedPrompt) { // Only show toast if there's something to "regenerate" from
+          if (generatedPrompt) { 
              toast({ title: "Regenerate Option", description: "To regenerate, adjust your idea or parameters above and click 'Generate Prompt' again."});
           }
         }}
