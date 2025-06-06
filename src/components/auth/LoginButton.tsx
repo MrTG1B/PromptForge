@@ -47,8 +47,8 @@ const LoginButton: React.FC = () => {
   return (
     <Button 
       onClick={handleLogin} 
-      variant="outline" 
-      className="border-border hover:bg-muted/50 w-full sm:w-auto flex items-center justify-center text-foreground hover:text-foreground px-6 py-3 shadow-sm hover:shadow-md transition-shadow duration-150"
+      variant="default" // Changed from outline to default
+      className="w-full sm:w-auto flex items-center justify-center px-6 py-3 shadow-sm hover:shadow-md transition-shadow duration-150"
     >
       <GoogleLogo />
       Sign in with Google
