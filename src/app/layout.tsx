@@ -1,5 +1,6 @@
 
 import type { Metadata } from 'next';
+import Script from 'next/script'; // Import next/script
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
@@ -9,7 +10,7 @@ import { Analytics } from "@vercel/analytics/next";
 const siteUrl = 'https://prompt-forge-blond.vercel.app';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl), // Recommended for resolving relative image paths
+  metadataBase: new URL(siteUrl),
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
@@ -30,9 +31,7 @@ export const metadata: Metadata = {
     ],
     locale: 'en_US',
     type: 'website',
-    // Add your Facebook App ID here
-    // You can get one from https://developers.facebook.com/apps/
-    appId: '750845667265576', 
+    appId: '750845667265576',
   },
   twitter: {
     card: 'summary_large_image',
@@ -55,6 +54,28 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased min-h-screen flex flex-col" suppressHydrationWarning={true}>
+        <div id="fb-root"></div>
+        <Script id="facebook-sdk-init" strategy="lazyOnload">
+          {`
+            window.fbAsyncInit = function() {
+              FB.init({
+                appId: '750845667265576',
+                cookie: true,
+                xfbml: true,
+                version: 'v20.0' // Using a recent API version
+              });
+              FB.AppEvents.logPageView(); // Logs page views automatically
+            };
+          `}
+        </Script>
+        <Script
+          async
+          defer
+          crossOrigin="anonymous"
+          src="https://connect.facebook.net/en_US/sdk.js"
+          strategy="lazyOnload"
+          id="facebook-jssdk"
+        />
         <AuthProvider>
           <Header />
           <main className="flex-grow container mx-auto px-4 py-8">
