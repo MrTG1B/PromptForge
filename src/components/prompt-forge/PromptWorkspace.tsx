@@ -55,9 +55,9 @@ const PromptWorkspace: React.FC = () => {
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
 
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(523.25, ctx.currentTime); // C5 note
-      gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+      oscillator.type = 'triangle'; // Changed from 'sine' for a potentially "more beautiful" tone
+      oscillator.frequency.setValueAtTime(440, ctx.currentTime); // A4 note, slightly different pitch
+      gainNode.gain.setValueAtTime(0.4, ctx.currentTime); // Increased volume from 0.1
       gainNode.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.5);
 
       oscillator.start(ctx.currentTime);
