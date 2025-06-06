@@ -1,3 +1,4 @@
+
 // src/components/prompt-forge/PromptWorkspace.tsx
 "use client";
 
@@ -20,7 +21,7 @@ const PromptWorkspace: React.FC = () => {
   const { toast } = useToast();
   const { executeRecaptcha } = useGoogleReCaptcha();
 
-  const getRecaptchaToken = async (actionName: string): Promise<string | null> => {
+  const getRecaptchaTokenAndAction = async (actionName: string): Promise<{ token: string; action: string } | null> => {
     if (!executeRecaptcha) {
       toast({
         title: "reCAPTCHA Error",
@@ -31,7 +32,15 @@ const PromptWorkspace: React.FC = () => {
     }
     try {
       const token = await executeRecaptcha(actionName);
-      return token;
+      if (!token) {
+        toast({
+          title: "reCAPTCHA Error",
+          description: "Failed to obtain reCAPTCHA token. Please try again.",
+          variant: "destructive",
+        });
+        return null;
+      }
+      return { token, action: actionName };
     } catch (err) {
       console.error("reCAPTCHA execution error:", err);
       toast({
@@ -48,8 +57,8 @@ const PromptWorkspace: React.FC = () => {
     setError(null);
     setGeneratedPrompt(null); // Clear previous prompt
 
-    const recaptchaToken = await getRecaptchaToken('refine_prompt');
-    if (!recaptchaToken) {
+    const recaptchaDetails = await getRecaptchaTokenAndAction('refine_prompt');
+    if (!recaptchaDetails) {
       setIsLoadingPrompt(false);
       return;
     }
@@ -62,7 +71,8 @@ const PromptWorkspace: React.FC = () => {
           length: data.length,
           tone: data.tone,
         },
-        recaptchaToken,
+        recaptchaToken: recaptchaDetails.token,
+        recaptchaAction: recaptchaDetails.action,
       });
       setGeneratedPrompt(result.refinedPrompt);
       
@@ -102,8 +112,8 @@ const PromptWorkspace: React.FC = () => {
     setError(null);
     setSuggestedParameters(null);
 
-    const recaptchaToken = await getRecaptchaToken('suggest_parameters');
-    if (!recaptchaToken) {
+    const recaptchaDetails = await getRecaptchaTokenAndAction('suggest_parameters');
+    if (!recaptchaDetails) {
       setIsLoadingSuggestions(false);
       return null;
     }
@@ -111,7 +121,8 @@ const PromptWorkspace: React.FC = () => {
     try {
       const result = await handleSuggestParametersAction({ 
         input: { basicPrompt: promptIdea },
-        recaptchaToken,
+        recaptchaToken: recaptchaDetails.token,
+        recaptchaAction: recaptchaDetails.action,
       });
       setSuggestedParameters(result);
       toast({
