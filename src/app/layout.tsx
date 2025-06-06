@@ -8,18 +8,20 @@ import GlobalProviders from '@/components/providers/GlobalProviders';
 
 const siteUrl = 'https://prompt-forge-blond.vercel.app';
 const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
-const facebookAppId = '1663861460968287'; // Updated Facebook App ID
+const facebookAppId = '1663861460968287'; // Facebook App ID for login
 
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: 'PromptForge',
-  description: 'AI-powered prompt generation and refinement tool.',
+  title: 'WellMeds - Your Medicine Information Hub',
+  description: 'Search for medicine details by name, enhanced by AI with WellMeds. Supports multiple languages.',
+  keywords: 'medicine, search, pharmacy, health, AI, multilingual, Paracetamol, Amoxicillin, WellMeds',
   icons: {
-    icon: '/promptforge-og.png', // Relative path
+    icon: '/images/logo.png', // Assumes logo is at public/images/logo.png
   },
   // openGraph object has been completely removed
   // twitter object has been completely removed
+  // 'other' for fb:app_id also removed
 };
 
 export default function RootLayout({
