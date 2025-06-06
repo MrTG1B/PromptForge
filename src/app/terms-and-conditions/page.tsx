@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function TermsAndConditionsPage() {
   const appName = "PromptForge";
   // IMPORTANT: Replace with your actual company name and contact information
-  const companyName = "Your Company Name"; 
+  const companyName = "Lumen Labs"; 
   const contactEmail = "support@yourdomain.com";
   const effectiveDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -116,4 +116,3 @@ export default function TermsAndConditionsPage() {
     </div>
   );
 }
-
