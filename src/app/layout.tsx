@@ -4,6 +4,7 @@ import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/Header';
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: 'PromptForge',
@@ -55,6 +56,7 @@ export default function RootLayout({
           </main>
           <Toaster />
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
