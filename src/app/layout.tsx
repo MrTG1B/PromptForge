@@ -16,13 +16,10 @@ export const metadata: Metadata = {
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
-    icon: '/promptforge-logo.png', // Relative path
+    icon: '/promptforge-og.png', // Relative path
   },
   // openGraph object has been completely removed
   // twitter object has been completely removed
-  other: {
-    'fb:app_id': facebookAppId,
-  }
 };
 
 export default function RootLayout({
