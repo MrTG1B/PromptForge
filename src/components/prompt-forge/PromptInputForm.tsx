@@ -122,8 +122,11 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
         .map(result => result[0])
         .map(result => result.transcript)
         .join('');
-      setValue('promptIdea', transcript, { shouldValidate: true, shouldDirty: true });
-      // Automatic submission removed as per user request
+      
+      const currentPromptIdea = getValues('promptIdea');
+      const newPromptIdea = currentPromptIdea ? `${currentPromptIdea} ${transcript}` : transcript;
+      
+      setValue('promptIdea', newPromptIdea, { shouldValidate: true, shouldDirty: true });
     };
 
     const handleSpeechError = (event: SpeechRecognitionErrorEvent) => {
@@ -166,7 +169,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
         currentInstance.onerror = null;
       }
     };
-  }, [speechApiSupported, setValue, toast, setIsListening, setMicError, setMicPermissionGranted]);
+  }, [speechApiSupported, setValue, toast, setIsListening, setMicError, setMicPermissionGranted, getValues]);
 
 
   const handleMicClick = async () => {
@@ -239,7 +242,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
         <form onSubmit={handleSubmit(onManualFormSubmit)} className="space-y-6">
           <div>
             <Label htmlFor="promptIdea" className="text-lg font-semibold">Your Prompt Idea</Label>
-            <div className="mt-1 flex items-start gap-2"> {/* Changed items-center to items-start */}
+            <div className="mt-1 flex items-start gap-2">
               <Textarea
                 id="promptIdea"
                 {...register("promptIdea")}
@@ -266,7 +269,7 @@ const PromptInputForm: React.FC<PromptInputFormProps> = ({
                   <Button
                     type="button"
                     variant="outline"
-                    size="icon" // Ensure size is icon
+                    size="icon"
                     onClick={handleClearPromptIdea}
                     disabled={isLoadingPrompt}
                     title="Clear prompt idea"
