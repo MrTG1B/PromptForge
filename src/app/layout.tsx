@@ -21,33 +21,19 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    url: siteUrl, // Keep absolute for the site URL itself
+    url: siteUrl,
     siteName: 'PromptForge',
-    images: [
-      {
-        url: '/promptforge-og.png', // Relative path
-        width: 1200,
-        height: 630,
-        alt: 'PromptForge Social Sharing Image',
-      },
-    ],
     locale: 'en_US',
     type: 'website',
+    // images property and its content removed
   },
   twitter: {
-    card: 'summary_large_image',
+    card: 'summary', // Changed from summary_large_image
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    images: [
-      {
-        url: '/promptforge-og.png', // Relative path
-        width: 1200,
-        height: 630,
-        alt: 'PromptForge Social Sharing Image',
-      }
-    ],
+    // images property and its content removed
   },
-  other: { 
+  other: {
     'fb:app_id': facebookAppId,
   }
 };
