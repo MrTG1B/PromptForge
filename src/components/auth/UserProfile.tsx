@@ -1,7 +1,8 @@
 // src/components/auth/UserProfile.tsx
 "use client";
 
-import { signOut } from '@/lib/firebase/auth'; // Placeholder
+import Link from 'next/link';
+import { signOut } from '@/lib/firebase/auth'; 
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, UserCircle2 } from 'lucide-react';
+import { LogOut, UserCircle2, ShieldCheck, FileText } from 'lucide-react';
 
 const UserProfile: React.FC = () => {
   const { user } = useAuth();
@@ -60,6 +61,19 @@ const UserProfile: React.FC = () => {
             </p>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href="/privacy-policy">
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            Privacy Policy
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href="/terms-and-conditions">
+            <FileText className="mr-2 h-4 w-4" />
+            Terms & Conditions
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
           <LogOut className="mr-2 h-4 w-4" />
