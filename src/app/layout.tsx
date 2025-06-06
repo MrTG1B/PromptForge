@@ -7,26 +7,37 @@ import { Analytics } from "@vercel/analytics/next";
 import GlobalProviders from '@/components/providers/GlobalProviders';
 
 const siteUrl = 'https://prompt-forge-blond.vercel.app';
-const facebookAppId = '1663861460968287'; // Facebook App ID for login
+const facebookAppId = '1663861460968287';
 const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 
-const ogImageUrl = `${siteUrl}/promptforge-og.png`; // Absolute URL for the OG image
+const ogImageUrl = `${siteUrl}/promptforge-og.png`;
+
+if (!recaptchaSiteKey || recaptchaSiteKey === "your_actual_recaptcha_site_key_here" || (typeof recaptchaSiteKey === 'string' && recaptchaSiteKey.startsWith("NEXT_PUBLIC_"))) {
+  console.error(
+    "SERVER-SIDE WARNING: NEXT_PUBLIC_RECAPTCHA_SITE_KEY is not configured or is a placeholder. " +
+    "reCAPTCHA will not function correctly. " +
+    "Please set this environment variable in your .env.local file (e.g., NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_actual_site_key) " +
+    "and in your Vercel project's environment variable settings. " +
+    "After updating .env.local, restart your development server."
+  );
+}
+
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl), // Base URL for resolving relative paths
+  metadataBase: new URL(siteUrl),
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
-    icon: '/promptforge-og.png', // Relative path, will be resolved by metadataBase
+    icon: '/promptforge-og.png',
   },
   openGraph: {
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    url: siteUrl, // Absolute URL of the page
+    url: siteUrl,
     siteName: 'PromptForge',
     images: [
       {
-        url: ogImageUrl, // Absolute URL to the image
+        url: ogImageUrl,
         width: 1200,
         height: 630,
         alt: 'PromptForge Social Sharing Image',
@@ -39,15 +50,15 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    images: [ // Changed to an array of objects for consistency and robustness
+    images: [
       {
-        url: ogImageUrl, // Absolute URL to the image
+        url: ogImageUrl,
         alt: 'PromptForge Twitter Image',
       }
     ],
   },
   other: {
-    'fb:app_id': facebookAppId, // For Facebook integration
+    'fb:app_id': facebookAppId,
   }
 };
 
@@ -78,10 +89,9 @@ export default function RootLayout({
               FB.init({
                 appId: '${facebookAppId}',
                 cookie: true,
-                xfbml: false, // Changed to false as we are only using SDK for login
+                xfbml: false,
                 version: 'v20.0'
               });
-              // FB.AppEvents.logPageView(); // Removed earlier
             };
           `}
         </Script>
@@ -93,7 +103,7 @@ export default function RootLayout({
           strategy="lazyOnload"
           id="facebook-jssdk"
         />
-        <GlobalProviders recaptchaSiteKey={recaptchaSiteKey!}>
+        <GlobalProviders recaptchaSiteKey={recaptchaSiteKey || "PLACEHOLDER_SITE_KEY_FROM_LAYOUT"}>
           {children}
         </GlobalProviders>
         <Analytics />
