@@ -82,7 +82,7 @@ export default function RootLayout({
                 xfbml: true,
                 version: 'v20.0' // Using a recent API version
               });
-              FB.AppEvents.logPageView(); // Logs page views automatically
+              // FB.AppEvents.logPageView(); // Removed: Logs page views automatically
             };
           `}
         </Script>
