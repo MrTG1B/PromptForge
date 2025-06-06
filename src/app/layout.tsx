@@ -18,21 +18,8 @@ export const metadata: Metadata = {
   icons: {
     icon: '/promptforge-logo.png', // Relative path
   },
-  openGraph: {
-    title: 'PromptForge',
-    description: 'AI-powered prompt generation and refinement tool.',
-    url: siteUrl,
-    siteName: 'PromptForge',
-    locale: 'en_US',
-    type: 'website',
-    // images property and its content removed
-  },
-  twitter: {
-    card: 'summary', // Changed from summary_large_image
-    title: 'PromptForge',
-    description: 'AI-powered prompt generation and refinement tool.',
-    // images property and its content removed
-  },
+  // openGraph object has been completely removed
+  // twitter object has been completely removed
   other: {
     'fb:app_id': facebookAppId,
   }
