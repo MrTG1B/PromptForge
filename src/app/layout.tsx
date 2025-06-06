@@ -6,9 +6,10 @@ import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/Header';
 import { Analytics } from "@vercel/analytics/next";
 
-const siteUrl = 'https://prompt-forge-blond.vercel.app'; // Define site URL once
+const siteUrl = 'https://prompt-forge-blond.vercel.app';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl), // Recommended for resolving relative image paths
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
@@ -17,24 +18,27 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    url: siteUrl, 
+    url: siteUrl,
     siteName: 'PromptForge',
     images: [
       {
-        url: `${siteUrl}/promptforge-og.png`, // Absolute URL
-        width: 1200, 
-        height: 630, 
+        url: '/promptforge-og.png', // Relative path, resolved by metadataBase
+        width: 1200,
+        height: 630,
         alt: 'PromptForge Social Sharing Image',
       },
     ],
     locale: 'en_US',
     type: 'website',
+    // Add your Facebook App ID here
+    // You can get one from https://developers.facebook.com/apps/
+    appId: 'YOUR_FACEBOOK_APP_ID', 
   },
   twitter: {
     card: 'summary_large_image',
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    images: [`${siteUrl}/promptforge-og.png`], // Absolute URL
+    images: ['/promptforge-og.png'], // Relative path, resolved by metadataBase
   },
 };
 
