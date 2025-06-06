@@ -1,3 +1,4 @@
+
 // src/app/page.tsx
 "use client";
 
@@ -41,7 +42,7 @@ export default function HomePage() {
       ) : (
         <Card className="mt-10 text-center shadow-xl border-primary/20">
           <CardHeader>
-            <Wand2 className="mx-auto h-16 w-16 text-primary mb-4" />
+            <Wand2 className="mx-auto h-20 w-20 text-primary mb-4" />
             <CardTitle className="font-headline text-4xl">Welcome to PromptForge!</CardTitle>
             <CardDescription className="text-lg text-muted-foreground pt-2">
               Unlock the power of AI with perfectly crafted prompts. <br />
