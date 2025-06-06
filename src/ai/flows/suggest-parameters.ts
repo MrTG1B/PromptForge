@@ -1,4 +1,5 @@
-// src/ai/flows/suggest-parameters.ts
+// This file is no longer used as the "Suggest Parameters" functionality has been removed.
+// You can safely delete this file if it's not referenced elsewhere.
 'use server';
 /**
  * @fileOverview A flow for suggesting optimal parameters (e.g., style, length, tone) to enhance a user-provided prompt.

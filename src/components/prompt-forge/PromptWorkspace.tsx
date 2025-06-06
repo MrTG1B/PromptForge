@@ -1,12 +1,11 @@
-
 // src/components/prompt-forge/PromptWorkspace.tsx
 "use client";
 
 import { useState } from 'react';
 import PromptInputForm, { type PromptFormValues } from './PromptInputForm';
 import GeneratedPromptDisplay from './GeneratedPromptDisplay';
-import { handleRefinePromptAction, handleSuggestParametersAction } from '@/app/actions';
-import type { SuggestParametersOutput } from '@/ai/flows/suggest-parameters';
+import { handleRefinePromptAction } from '@/app/actions';
+import type { RefinePromptInput } from '@/ai/flows/refine-prompt'; // Import RefinePromptInput
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
@@ -15,8 +14,6 @@ import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 const PromptWorkspace: React.FC = () => {
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [suggestedParameters, setSuggestedParameters] = useState<SuggestParametersOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { executeRecaptcha } = useGoogleReCaptcha();
@@ -52,10 +49,10 @@ const PromptWorkspace: React.FC = () => {
     }
   };
 
-  const handleSubmitPrompt = async (data: PromptFormValues) => {
+  const handleSubmitPrompt = async (data: PromptFormValues, includeParameters: boolean) => {
     setIsLoadingPrompt(true);
     setError(null);
-    setGeneratedPrompt(null); // Clear previous prompt
+    setGeneratedPrompt(null); 
 
     const recaptchaDetails = await getRecaptchaTokenAndAction('refine_prompt');
     if (!recaptchaDetails) {
@@ -63,14 +60,16 @@ const PromptWorkspace: React.FC = () => {
       return;
     }
 
+    const refineInput: RefinePromptInput = {
+      promptIdea: data.promptIdea,
+      style: includeParameters ? data.style : undefined,
+      length: includeParameters ? data.length : undefined,
+      tone: includeParameters ? data.tone : undefined,
+    };
+
     try {
       const result = await handleRefinePromptAction({
-        input: {
-          promptIdea: data.promptIdea,
-          style: data.style,
-          length: data.length,
-          tone: data.tone,
-        },
+        input: refineInput,
         recaptchaToken: recaptchaDetails.token,
         recaptchaAction: recaptchaDetails.action,
       });
@@ -102,61 +101,14 @@ const PromptWorkspace: React.FC = () => {
         description: errorMessage,
         variant: "destructive",
       });
+      if (errorMessage.includes("SERVER_CONFIG_ERROR") || errorMessage.includes("GCP_AUTHENTICATION_FAILURE")) {
+        console.error("A critical server configuration error occurred:", errorMessage);
+      }
     } finally {
       setIsLoadingPrompt(false);
     }
   };
 
-  const handleSuggestParams = async (promptIdea: string): Promise<SuggestParametersOutput | null> => {
-    setIsLoadingSuggestions(true);
-    setError(null);
-    setSuggestedParameters(null);
-
-    const recaptchaDetails = await getRecaptchaTokenAndAction('suggest_parameters');
-    if (!recaptchaDetails) {
-      setIsLoadingSuggestions(false);
-      return null;
-    }
-
-    try {
-      const result = await handleSuggestParametersAction({ 
-        input: { basicPrompt: promptIdea },
-        recaptchaToken: recaptchaDetails.token,
-        recaptchaAction: recaptchaDetails.action,
-      });
-      setSuggestedParameters(result);
-      toast({
-        title: "Parameters Suggested!",
-        description: "AI has suggested new parameters for your prompt.",
-      });
-      if (result.reasoning) {
-         toast({
-            title: "AI Reasoning for Suggestions",
-            description: (
-            <div className="text-sm">
-                <p className="font-semibold">Style: <span className="font-normal">{result.suggestedStyle}</span></p>
-                <p className="font-semibold">Length: <span className="font-normal">{result.suggestedLength}</span></p>
-                <p className="font-semibold">Tone: <span className="font-normal">{result.suggestedTone}</span></p>
-                <p className="mt-2 pt-2 border-t border-border"><span className="font-semibold">Reasoning:</span> {result.reasoning}</p>
-            </div>
-            ),
-            duration: 10000, 
-        });
-      }
-      return result;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      setError(errorMessage);
-      toast({
-        title: "Error Suggesting Parameters",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      return null;
-    } finally {
-      setIsLoadingSuggestions(false);
-    }
-  };
 
   return (
     <div className="space-y-8">
@@ -169,17 +121,14 @@ const PromptWorkspace: React.FC = () => {
       )}
       <PromptInputForm
         onSubmitPrompt={handleSubmitPrompt}
-        onSuggestParameters={handleSuggestParams}
         isLoadingPrompt={isLoadingPrompt}
-        isLoadingSuggestions={isLoadingSuggestions}
-        suggestedParameters={suggestedParameters}
       />
       <GeneratedPromptDisplay
         promptText={generatedPrompt}
         isLoading={isLoadingPrompt}
         onRegenerate={() => {
           if (generatedPrompt) {
-             toast({ title: "Regenerate Clicked", description: "Modify parameters and click 'Generate Prompt' again."});
+             toast({ title: "Regenerate Option", description: "To regenerate, adjust your idea or parameters above and click 'Generate Prompt' again."});
           }
         }}
       />

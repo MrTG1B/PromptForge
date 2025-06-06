@@ -3,32 +3,30 @@
 "use server";
 
 import { refinePrompt, type RefinePromptInput, type RefinePromptOutput } from '@/ai/flows/refine-prompt';
-import { suggestParameters, type SuggestParametersInput, type SuggestParametersOutput } from '@/ai/flows/suggest-parameters';
+// Removed suggestParameters imports as it's no longer used
 import { RecaptchaEnterpriseServiceClient } from '@google-cloud/recaptcha-enterprise';
 
 const GOOGLE_CLOUD_PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID;
 const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
-const RECAPTCHA_SCORE_THRESHOLD = 0.5;
+const RECAPTCHA_SCORE_THRESHOLD = 0.5; // Default score threshold
 
-/**
- * Verifies a reCAPTCHA Enterprise token by creating an assessment.
- */
 async function verifyRecaptchaToken(token: string, recaptchaAction: string): Promise<boolean> {
   if (!GOOGLE_CLOUD_PROJECT_ID) {
     console.error("CRITICAL_CONFIG_ERROR: GOOGLE_CLOUD_PROJECT_ID environment variable is NOT SET. reCAPTCHA Enterprise verification will fail.");
     throw new Error("SERVER_CONFIG_ERROR: Missing Google Cloud Project ID for reCAPTCHA.");
   }
-  if (GOOGLE_CLOUD_PROJECT_ID === "your_google_cloud_project_id_here" || GOOGLE_CLOUD_PROJECT_ID === "promptforge-4jp7t-default-id") {
+  if (GOOGLE_CLOUD_PROJECT_ID === "your_google_cloud_project_id_here" || GOOGLE_CLOUD_PROJECT_ID === "promptforge-4jp7t-default-id") { // Added default ID check
     console.warn(`Warning_CONFIG: GOOGLE_CLOUD_PROJECT_ID is set to a default/placeholder: "${GOOGLE_CLOUD_PROJECT_ID}". Ensure this is your actual GCP project ID where reCAPTCHA Enterprise is configured.`);
   }
   if (!RECAPTCHA_SITE_KEY) {
     console.error("CRITICAL_CONFIG_ERROR: NEXT_PUBLIC_RECAPTCHA_SITE_KEY environment variable is NOT SET. reCAPTCHA Enterprise verification will fail.");
     throw new Error("SERVER_CONFIG_ERROR: Missing reCAPTCHA Site Key.");
   }
-  if (RECAPTCHA_SITE_KEY === "your_actual_recaptcha_site_key_here" || RECAPTCHA_SITE_KEY === "NO_RECAPTCHA_KEY_LOADED_CHECK_ENV" || RECAPTCHA_SITE_KEY === "PLACEHOLDER_SITE_KEY_FROM_LAYOUT") {
+   if (RECAPTCHA_SITE_KEY === "your_actual_recaptcha_site_key_here" || RECAPTCHA_SITE_KEY === "NO_RECAPTCHA_KEY_LOADED_CHECK_ENV" || RECAPTCHA_SITE_KEY === "PLACEHOLDER_SITE_KEY_FROM_LAYOUT") {
     console.error(`CRITICAL_CONFIG_ERROR: NEXT_PUBLIC_RECAPTCHA_SITE_KEY is a placeholder value: "${RECAPTCHA_SITE_KEY}". reCAPTCHA Enterprise verification will fail.`);
     throw new Error("SERVER_CONFIG_ERROR: Placeholder reCAPTCHA Site Key detected.");
   }
+
 
   let client;
   try {
@@ -42,19 +40,19 @@ async function verifyRecaptchaToken(token: string, recaptchaAction: string): Pro
           console.log("Attempting to initialize RecaptchaEnterpriseServiceClient with explicit JSON credentials from GOOGLE_APPLICATION_CREDENTIALS.");
           clientOptions.credentials = {
             client_email: parsedCreds.client_email,
-            // Ensure private key newlines are correctly formatted
-            private_key: parsedCreds.private_key.replace(/\\n/g, '\n'),
+            private_key: parsedCreds.private_key.replace(/\\n/g, '\n'), // Ensure private key newlines are correctly formatted
           };
         } else {
           console.log("GOOGLE_APPLICATION_CREDENTIALS was set but not valid JSON with client_email/private_key. Assuming it's a file path for RecaptchaEnterpriseServiceClient.");
           clientOptions.keyFilename = gcpCredsEnv;
         }
       } catch (e) {
+        // If parsing fails, assume it's a file path (Vercel's default behavior)
         console.log("GOOGLE_APPLICATION_CREDENTIALS was set but could not be parsed as JSON. Assuming it's a file path for RecaptchaEnterpriseServiceClient.");
         clientOptions.keyFilename = gcpCredsEnv;
       }
     } else {
-      console.warn("GOOGLE_APPLICATION_CREDENTIALS environment variable is NOT SET. RecaptchaEnterpriseServiceClient will attempt to use Application Default Credentials (ADC).");
+      console.warn("GOOGLE_APPLICATION_CREDENTIALS environment variable is NOT SET. RecaptchaEnterpriseServiceClient will attempt to use Application Default Credentials (ADC). This is okay for local dev with `gcloud auth application-default login`, but for Vercel, you typically MUST set this variable with the service account JSON content.");
     }
     
     client = new RecaptchaEnterpriseServiceClient(clientOptions);
@@ -62,7 +60,7 @@ async function verifyRecaptchaToken(token: string, recaptchaAction: string): Pro
   } catch (e: any) {
     console.error("CRITICAL_SERVICE_CLIENT_ERROR: Failed to create RecaptchaEnterpriseServiceClient. This often indicates a problem with Google Cloud library setup or fundamental environment issues.", e);
     if (e.message && (e.message.includes('Could not load the default credentials') || e.message.includes('ENAMETOOLONG') || e.message.includes('does not exist'))) {
-      console.error("FATAL_GCP_AUTH_ERROR_DURING_ASSESSMENT_INIT: Could not load Google Cloud credentials for RecaptchaEnterpriseServiceClient. Ensure GOOGLE_APPLICATION_CREDENTIALS is set correctly in your Vercel environment (as the JSON key content) and the service account has 'reCAPTCHA Enterprise Agent' permissions. If GOOGLE_APPLICATION_CREDENTIALS is set, verify its content and format. Current error details:", e.message, e.stack);
+      console.error(`FATAL_GCP_AUTH_ERROR_DURING_ASSESSMENT_INIT: Could not load Google Cloud credentials for RecaptchaEnterpriseServiceClient. Ensure GOOGLE_APPLICATION_CREDENTIALS is set correctly in your Vercel environment (as the JSON key content) and the service account has 'reCAPTCHA Enterprise Agent' permissions. If GOOGLE_APPLICATION_CREDENTIALS is set, verify its content and format. Current error details:`, e.message, e.stack);
       throw new Error("GCP_AUTHENTICATION_FAILURE_INIT: Server failed to initialize security services due to credential loading issues.");
     }
     throw new Error("SERVER_ERROR: Could not initialize reCAPTCHA service client.");
@@ -123,9 +121,7 @@ async function verifyRecaptchaToken(token: string, recaptchaAction: string): Pro
     const score = response.riskAnalysis.score;
     console.log(`reCAPTCHA Enterprise score for action "${recaptchaAction}": ${score}`);
     if (response.riskAnalysis.reasons && response.riskAnalysis.reasons.length > 0) {
-        response.riskAnalysis.reasons.forEach((reason) => {
-          console.log(`Risk reason for action "${recaptchaAction}": ${reason}`);
-        });
+        console.log(`Risk reasons for action "${recaptchaAction}": ${response.riskAnalysis.reasons.join(', ')}`);
     } else {
         console.log(`No specific risk reasons provided for action "${recaptchaAction}" with score ${score}.`);
     }
@@ -145,7 +141,7 @@ async function verifyRecaptchaToken(token: string, recaptchaAction: string): Pro
 
   } catch (error: any) {
     console.error(`Exception during reCAPTCHA Enterprise assessment creation for action "${recaptchaAction}":`, error);
-    if (error.message && (error.message.includes('Could not load the default credentials') || e.message.includes('ENAMETOOLONG') || e.message.includes('does not exist'))) {
+    if (error.message && (error.message.includes('Could not load the default credentials') || error.message.includes('ENAMETOOLONG') || error.message.includes('does not exist'))) {
         console.error(`FATAL_GCP_AUTH_ERROR_DURING_ASSESSMENT: Could not load Google Cloud credentials during assessment for action "${recaptchaAction}". This is a critical GCP authentication issue. Ensure GOOGLE_APPLICATION_CREDENTIALS is correctly set in Vercel. Error: ${error.message}`, error.stack);
         throw new Error(`GCP_AUTHENTICATION_FAILURE: Server failed to authenticate with Google Cloud services for reCAPTCHA for action "${recaptchaAction}".`);
     }
@@ -167,21 +163,24 @@ async function handleGenericAction<TInput, TOutput>(
     isHuman = await verifyRecaptchaToken(recaptchaToken, recaptchaAction);
   } catch (verificationError: any) {
     console.error(`Error during reCAPTCHA verification for ${actionName} (${recaptchaAction}):`, verificationError.message);
-    if (verificationError.message && verificationError.message.startsWith('GCP_AUTHENTICATION_FAILURE_INIT:')) {
-      throw new Error("A server security configuration error occurred (GCP Auth Init). Please try again later or contact support.");
-    } else if (verificationError.message && verificationError.message.startsWith('GCP_AUTHENTICATION_FAILURE:')) {
-      throw new Error("A server security configuration error occurred (GCP Auth). Please try again later or contact support.");
-    } else if (verificationError.message && verificationError.message.startsWith('SERVER_CONFIG_ERROR:')) {
-       throw new Error("A server configuration error occurred with reCAPTCHA. Please contact support.");
-    } else if (verificationError.message && verificationError.message.startsWith('SERVER_ERROR:')) {
-       throw new Error("An unexpected server error occurred during reCAPTCHA processing. Please contact support.");
+    let clientMessage = "An unexpected error occurred during security verification. Please contact support.";
+    if (verificationError.message) {
+      if (verificationError.message.startsWith('GCP_AUTHENTICATION_FAILURE_INIT:')) {
+        clientMessage = "A server security configuration error occurred (GCP Auth Init). Please try again later or contact support.";
+      } else if (verificationError.message.startsWith('GCP_AUTHENTICATION_FAILURE:')) {
+        clientMessage = "A server security configuration error occurred (GCP Auth). Please try again later or contact support.";
+      } else if (verificationError.message.startsWith('SERVER_CONFIG_ERROR:')) {
+         clientMessage = "A server configuration error occurred with reCAPTCHA. Please contact support.";
+      } else if (verificationError.message.startsWith('SERVER_ERROR:')) {
+         clientMessage = "An unexpected server error occurred during reCAPTCHA processing. Please contact support.";
+      }
     }
-    throw new Error("An unexpected error occurred during security verification. Please contact support.");
+    throw new Error(clientMessage);
   }
   
   if (!isHuman) {
-    const detailedErrorMsg = `reCAPTCHA verification failed for action "${recaptchaAction}". Please ensure you are not a robot or try again later. Check server logs for specific reasons.`;
-    console.warn(`Verification failed for ${actionName}. Action: ${recaptchaAction}. Token used: ${recaptchaToken ? 'present' : 'missing/empty'}`);
+    const detailedErrorMsg = `reCAPTCHA verification failed for action "${recaptchaAction}". Please ensure you are not a robot or try again later.`;
+    console.warn(`Verification failed for ${actionName}. Action: ${recaptchaAction}. Token used: ${recaptchaToken ? 'present' : 'missing/empty'}. Check server logs for specific reasons (e.g., score, invalid reason).`);
     throw new Error(detailedErrorMsg);
   }
 
@@ -202,8 +201,5 @@ export async function handleRefinePromptAction(params: { input: RefinePromptInpu
   return handleGenericAction("Refine Prompt", params, refinePrompt);
 }
 
-export async function handleSuggestParametersAction(params: { input: SuggestParametersInput, recaptchaToken: string, recaptchaAction: string }): Promise<SuggestParametersOutput> {
-  return handleGenericAction("Suggest Parameters", params, suggestParameters);
-}
-
+// Removed handleSuggestParametersAction as it's no longer used
     
