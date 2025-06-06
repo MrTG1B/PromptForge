@@ -1,9 +1,8 @@
 // src/contexts/AuthContext.tsx
 "use client";
 
-import type React from 'react';
-import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, type User } from '@/lib/firebase/auth'; // Placeholder path
+import * as React from 'react';
+import { onAuthStateChanged, type User } from '@/lib/firebase/auth';
 import { Loader2 } from 'lucide-react';
 
 interface AuthContextType {
@@ -11,13 +10,13 @@ interface AuthContextType {
   loading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = React.useState<User | null>(null);
+  const [loading, setLoading] = React.useState(true);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const unsubscribe = onAuthStateChanged((firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
@@ -42,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
+  const context = React.useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
