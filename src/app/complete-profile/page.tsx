@@ -2,7 +2,7 @@
 // src/app/complete-profile/page.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
@@ -16,10 +16,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, UserCheck, ArrowRight } from 'lucide-react';
+import { auth, app } from '@/lib/firebase/config'; // Import auth and app
+import { updateProfile } from 'firebase/auth';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-const LOCAL_STORAGE_PROFILE_PIC_KEY_PREFIX = "promptForgeUserProfilePic_";
 
 const profileSchema = z.object({
   fullName: z.string().min(1, { message: "Full name is required." }),
@@ -40,6 +42,8 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
+const storage = getStorage(app);
+
 export default function CompleteProfilePage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -57,18 +61,17 @@ export default function CompleteProfilePage() {
 
   const profilePictureFiles = watch("profilePicture");
 
-  // Effect to load image from localStorage on mount
   useEffect(() => {
-    if (user?.uid) {
-      const storedImage = localStorage.getItem(`${LOCAL_STORAGE_PROFILE_PIC_KEY_PREFIX}${user.uid}`);
-      if (storedImage) {
-        setPreview(storedImage);
+    if (user) {
+      setValue('fullName', user.displayName || '');
+      // For DOB and mobile, you'd typically load these from your backend profile data
+      // For now, we only prefill name from Auth
+      if (user.photoURL) {
+        setPreview(user.photoURL);
       }
     }
-  }, [user]);
+  }, [user, setValue]);
 
-
-  // Effect to update preview when a new file is selected
   useEffect(() => {
     if (profilePictureFiles && profilePictureFiles.length > 0) {
       const file = profilePictureFiles[0];
@@ -79,14 +82,14 @@ export default function CompleteProfilePage() {
         };
         reader.readAsDataURL(file);
       } else {
-        // Clear preview if file is invalid, errors are handled by Zod
-        setPreview(user?.uid ? localStorage.getItem(`${LOCAL_STORAGE_PROFILE_PIC_KEY_PREFIX}${user.uid}`) : null);
+        setPreview(user?.photoURL || null); // Revert to original if invalid file chosen
       }
     } else if (profilePictureFiles && profilePictureFiles.length === 0) {
-        // If files are cleared from input, try to restore from localStorage or clear if nothing there
-         setPreview(user?.uid ? localStorage.getItem(`${LOCAL_STORAGE_PROFILE_PIC_KEY_PREFIX}${user.uid}`) : null);
+      // File input was cleared
+      setPreview(null); // User intends to remove or not set a picture
     }
-  }, [profilePictureFiles, user?.uid]);
+  }, [profilePictureFiles, user?.photoURL]);
+
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -96,75 +99,61 @@ export default function CompleteProfilePage() {
 
   const onSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
     setIsSubmitting(true);
-    const { profilePicture, ...otherData } = data;
-    
-    if (profilePicture && profilePicture.length > 0 && user?.uid) {
-      const file = profilePicture[0];
-      // Check validity again just in case, though Zod should catch it
-      if (ACCEPTED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_FILE_SIZE) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          try {
-            localStorage.setItem(`${LOCAL_STORAGE_PROFILE_PIC_KEY_PREFIX}${user.uid}`, reader.result as string);
-            toast({
-              title: "Profile Picture Saved!",
-              description: "Your new profile picture has been saved locally.",
-              variant: "default",
-            });
-          } catch (e: any) {
-             console.error("Error saving image to localStorage:", e);
-             let description = "Could not save image to local storage.";
-             if (e.name === 'QuotaExceededError') {
-                description = "Could not save image: Local storage quota exceeded. Please clear some space or use a smaller image.";
-             }
-             toast({
-              title: "Storage Error",
-              description: description,
-              variant: "destructive",
-            });
-          }
-        };
-        reader.onerror = () => {
-          console.error("Error reading file for localStorage");
-          toast({
-            title: "File Read Error",
-            description: "Could not read the selected image file.",
-            variant: "destructive",
-          });
-        };
-        reader.readAsDataURL(file);
-      } else {
-         toast({
-            title: "Invalid Image",
-            description: "The selected image is not valid (type or size). Please check the requirements.",
-            variant: "destructive",
-        });
-      }
-    } else if ((!profilePicture || profilePicture.length === 0) && user?.uid) {
-        // If user explicitly clears the file input and submits, remove from localStorage
-        localStorage.removeItem(`${LOCAL_STORAGE_PROFILE_PIC_KEY_PREFIX}${user.uid}`);
-        setPreview(null); // Clear preview as well
-         toast({
-            title: "Profile Picture Removed",
-            description: "Your profile picture has been removed from local storage.",
-            variant: "default",
-        });
+    if (!user || !auth.currentUser) {
+      toast({ title: "Error", description: "User not authenticated.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
     }
 
+    const { profilePicture, ...otherProfileData } = data;
+    let newPhotoURL: string | null = user.photoURL; // Default to existing photoURL
 
-    console.log("Profile data to save (excluding image which is in localStorage):", otherData);
-    // TODO: Save otherData (fullName, dateOfBirth, mobileNumber) to your backend (e.g., Firestore) here.
-    // Example: await updateUserProfileInFirestore(user.uid, otherData);
+    try {
+      if (profilePicture && profilePicture.length > 0) {
+        const file = profilePicture[0];
+        // Zod validation for type/size should have run, but good to be aware
+        const filePath = `profile-pictures/${user.uid}/${Date.now()}_${file.name}`;
+        const fileRef = storageRef(storage, filePath);
 
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call for other data
+        toast({ title: "Uploading Picture...", description: "Please wait.", variant: "default" });
+        await uploadBytes(fileRef, file);
+        newPhotoURL = await getDownloadURL(fileRef);
+        toast({ title: "Picture Uploaded!", description: "Your new profile picture is saved.", variant: "default" });
+      } else if (preview === null && user.photoURL) {
+        // User cleared the input and there was an existing photoURL, so they intend to remove it.
+        newPhotoURL = null;
+        toast({ title: "Profile Picture Removed", description: "Your profile picture will be removed.", variant: "default"});
+        // Optional: Delete old file from Firebase Storage here if you stored its path previously.
+        // For simplicity, we are only removing it from the Auth profile.
+      }
 
-    toast({
-      title: "Profile Updated!",
-      description: "Your details have been processed. Profile picture is managed in local storage.",
-    });
-    // setValue('profilePicture', undefined); // Reset file input after "submission" if desired
-    router.push('/'); 
-    setIsSubmitting(false);
+      await updateProfile(auth.currentUser, {
+        displayName: data.fullName,
+        photoURL: newPhotoURL,
+      });
+      
+      // TODO: Save otherProfileData (dateOfBirth, mobileNumber) and potentially newPhotoURL to your backend (e.g., Firestore) here.
+      // Example: await updateUserProfileInFirestore(user.uid, { ...otherProfileData, photoURL: newPhotoURL });
+      console.log("Profile data to save to backend (excluding image which is in Auth profile):", otherProfileData);
+      console.log("Firebase Auth profile updated with displayName and photoURL:", newPhotoURL);
+
+      await new Promise(resolve => setTimeout(resolve, 300)); 
+
+      toast({
+        title: "Profile Updated!",
+        description: "Your details have been successfully updated.",
+      });
+      router.push('/');
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Could not update profile. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (authLoading || !user) {
@@ -249,5 +238,3 @@ export default function CompleteProfilePage() {
     </div>
   );
 }
-
-    
