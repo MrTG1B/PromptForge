@@ -163,14 +163,14 @@ export default function HomePage() {
             <div className="bg-card p-2 rounded-lg shadow-xl border border-border transition-all duration-300 hover:scale-105 hover:shadow-2xl">
                   <Image
                     src="https://placehold.co/700x400.png"
-                    alt="PromptForge Workspace Preview"
+                    alt="PromptForge Workspace Screenshot Preview"
                     width={700}
                     height={400}
                     className="rounded-md "
-                    data-ai-hint="app screenshot"
+                    data-ai-hint="app interface"
                 />
             </div>
-            <p className="text-xs text-muted-foreground mt-4 italic">Conceptual preview of the PromptForge workspace.</p>
+            {/* Caption removed */}
         </div>
 
         <div
