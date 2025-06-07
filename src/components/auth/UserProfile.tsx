@@ -33,11 +33,19 @@ const UserProfile: React.FC = () => {
     return null;
   }
 
-  const getInitials = (name: string | null | undefined) => {
-    if (!name) return <UserCircle2 className="h-5 w-5" />;
-    const names = name.split(' ');
-    if (names.length === 1) return names[0].charAt(0).toUpperCase();
-    return `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase();
+  const getInitials = (name: string | null | undefined): string | null => {
+    const trimmedName = name?.trim();
+    if (!trimmedName) {
+      return null; // Return null to make the fallback empty if no name
+    }
+    const names = trimmedName.split(' ');
+    if (names.length === 1 && names[0]) {
+      return names[0].charAt(0).toUpperCase();
+    }
+    if (names.length > 1 && names[0] && names[names.length - 1]) {
+      return `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase();
+    }
+    return null; // Fallback for unexpected name format
   };
 
   return (
@@ -46,7 +54,7 @@ const UserProfile: React.FC = () => {
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-9 w-9">
             <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
-            <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+            <AvatarFallback>{getInitials(user.displayName) || <UserCircle2 className="h-5 w-5" />}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
