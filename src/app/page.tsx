@@ -1,38 +1,86 @@
+
 // src/app/page.tsx
 "use client";
 
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import PromptWorkspace from '@/components/prompt-forge/PromptWorkspace';
-import VerifyEmailPrompt from '@/components/auth/VerifyEmailPrompt'; // Import the new component
+import VerifyEmailPrompt from '@/components/auth/VerifyEmailPrompt';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wand2, ArrowRight, Zap, Settings2, LayoutGrid, Sparkles } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Wand2, ArrowRight, Zap, Settings2, LayoutGrid, Sparkles, CheckCircle } from 'lucide-react';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
+
+  useEffect(() => {
+    const isFirstLogin = searchParams.get('firstLogin') === 'true';
+    if (isFirstLogin && user && !loading) {
+      setShowWelcomeDialog(true);
+      // Remove the query param from URL without reloading and triggering navigation events
+      const newUrl = `${window.location.pathname}`;
+      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, '', newUrl);
+    }
+  }, [searchParams, user, loading]);
 
   const handleGetStarted = () => {
     router.push('/login');
   };
 
   if (loading) {
-    // Loading state is handled by AuthProvider's full-screen loader
     return null;
   }
 
   if (user) {
     const isEmailPasswordUser = user.providerData.some(p => p.providerId === 'password');
     if (isEmailPasswordUser && !user.emailVerified) {
-      return <VerifyEmailPrompt />; // Show verification prompt if email/password user and not verified
+      return <VerifyEmailPrompt />;
     }
-    // User is logged in (and verified if email/password user)
     return (
-      <div className="w-full max-w-4xl mx-auto">
-        <PromptWorkspace />
-      </div>
+      <>
+        <div className="w-full max-w-4xl mx-auto">
+          <PromptWorkspace />
+        </div>
+        <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
+          <DialogContent className="sm:max-w-[480px]">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-headline flex items-center">
+                <Sparkles className="mr-3 h-7 w-7 text-primary" /> Welcome to PromptForge!
+              </DialogTitle>
+              <DialogDescription className="pt-2 text-base">
+                You're all set to start crafting amazing AI prompts. Here’s a quick guide:
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-3 text-sm text-foreground">
+              <p>
+                <strong>1. Input Your Idea:</strong> Enter your basic prompt idea in the main text area.
+                Don't worry if it's rough – that's what we're here for!
+              </p>
+              <p>
+                <strong>2. (Optional) Refine Parameters:</strong> If you have specific needs, toggle on "Refine with Specific Parameters" to set the desired style, length, and tone for your prompt.
+              </p>
+              <p>
+                <strong>3. Generate:</strong> Click "Generate Prompt". Our AI will analyze your input and forge a more detailed and effective prompt.
+              </p>
+              <p>
+                <strong>4. Edit & Copy:</strong> The refined prompt will appear below. You can edit it directly or copy it to your clipboard to use with your favorite AI tools.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setShowWelcomeDialog(false)} className="bg-primary hover:bg-primary/90">
+                <CheckCircle className="mr-2 h-5 w-5" /> Got it, Let's Forge!
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
@@ -67,7 +115,6 @@ export default function HomePage() {
         >
           <h2 className="text-3xl font-semibold font-headline text-foreground mb-12">Why Choose PromptForge?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Feature Card 1 */}
             <Card className="shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-300 hover:scale-105" data-animate-on-scroll>
               <CardHeader className="items-center">
                 <div className="bg-primary/10 p-4 rounded-full mb-4 inline-block">
@@ -81,7 +128,6 @@ export default function HomePage() {
                 </p>
               </CardContent>
             </Card>
-            {/* Feature Card 2 */}
             <Card className="shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-400 hover:scale-105" data-animate-on-scroll>
               <CardHeader className="items-center">
                   <div className="bg-primary/10 p-4 rounded-full mb-4 inline-block">
@@ -95,7 +141,6 @@ export default function HomePage() {
                 </p>
               </CardContent>
             </Card>
-            {/* Feature Card 3 */}
             <Card className="shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-500 hover:scale-105" data-animate-on-scroll>
               <CardHeader className="items-center">
                 <div className="bg-primary/10 p-4 rounded-full mb-4 inline-block">
@@ -112,7 +157,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Placeholder Image section */}
         <div
           className="mt-24 w-full max-w-3xl animate-in fade-in-0 zoom-in-90 duration-500 delay-300"
           data-animate-on-scroll
@@ -131,7 +175,6 @@ export default function HomePage() {
             <p className="text-xs text-muted-foreground mt-4 italic">Conceptual preview of the PromptForge workspace.</p>
         </div>
 
-        {/* Call to Action Section */}
         <div
           className="mt-24 mb-10 py-16 bg-muted/30 rounded-lg w-full max-w-4xl px-6 animate-in fade-in-0 slide-in-from-bottom-12 duration-700 delay-300"
           data-animate-on-scroll
@@ -153,3 +196,4 @@ export default function HomePage() {
     </div>
   );
 }
+    

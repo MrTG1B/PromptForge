@@ -14,19 +14,56 @@ import {
   updatePassword as firebaseUpdatePassword,
   sendEmailVerification,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  updateProfile, // Import updateProfile
   type UserCredential,
   type AuthError,
   type User as FirebaseUser,
   type ActionCodeSettings,
 } from 'firebase/auth';
-import { auth } from './config'; // Firebase app initialized with auth
+import { auth, db } from './config'; // Firebase app initialized with auth
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'; // Firestore imports
 
 export type User = FirebaseUser | null;
+
+// Helper function to create user profile in Firestore
+const createUserProfileInFirestore = async (
+  userId: string, 
+  email: string, 
+  firstName: string, 
+  lastName: string, 
+  dobDay: string, 
+  dobMonth: string, 
+  dobYear: string, 
+  mobileNumber: string
+) => {
+  const userDocRef = doc(db, "users", userId);
+  try {
+    await setDoc(userDocRef, {
+      firstName,
+      lastName,
+      dobDay,
+      dobMonth,
+      dobYear,
+      mobileNumber,
+      email,
+      emailVerified: false, // Email is not verified at this point
+      photoURL: null, // No photoURL at signup
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }, { merge: true }); // merge: true is good practice if you might add fields later or if this function could be called again
+  } catch (error) {
+    console.error("Error creating user profile in Firestore:", error);
+    // Decide if you want to throw the error or handle it, e.g., by attempting to delete the Firebase Auth user
+    throw new Error("Failed to create user profile in database.");
+  }
+};
+
 
 export const signInWithGoogle = async (): Promise<User | null> => {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
+    // TODO: Optionally create/update user profile in Firestore for Google sign-ins too
     return result.user;
   } catch (error) {
     console.error("Error during Google Sign-In:", error);
@@ -38,6 +75,7 @@ export const signInWithFacebook = async (): Promise<User | null> => {
   const provider = new FacebookAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
+    // TODO: Optionally create/update user profile in Firestore for Facebook sign-ins too
     return result.user;
   } catch (error) {
     console.error("Error during Facebook Sign-In:", error);
@@ -45,31 +83,46 @@ export const signInWithFacebook = async (): Promise<User | null> => {
   }
 };
 
-export const signUpWithEmailPasswordAndSendVerification = async (email: string, password: string): Promise<UserCredential> => {
+export const signUpWithEmailPasswordAndSendVerification = async (
+  email: string, 
+  password: string,
+  firstName: string,
+  lastName: string,
+  dobDay: string,
+  dobMonth: string,
+  dobYear: string,
+  mobileNumber: string
+): Promise<UserCredential> => {
   try {
     const userCredential = await firebaseCreateUserWithEmailAndPassword(auth, email, password);
-    
-    if (userCredential.user) {
-      // This sendEmailVerification call uses the "Email address verification" template
-      // configured in your Firebase console for initial user signup.
-      // The actionCodeSettings determine the URL the user is redirected to after successful verification.
-      const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
+    const user = userCredential.user;
+
+    if (user) {
+      // 1. Update Firebase Auth display name
+      const displayName = `${firstName} ${lastName}`.trim();
+      await updateProfile(user, { displayName });
+
+      // 2. Create user profile in Firestore
+      await createUserProfileInFirestore(user.uid, email, firstName, lastName, dobDay, dobMonth, dobYear, mobileNumber);
       
+      // 3. Send verification email
+      const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
       if (!siteURL || siteURL.includes("your-site-url") || siteURL === "http://localhost:9000" || siteURL === "http://localhost:3000" || siteURL === "PLACEHOLDER_SITE_URL_NOT_SET_IN_ENV") {
         const errorMsg = `CRITICAL_CONFIG_ERROR (Firebase Auth - signUp): NEXT_PUBLIC_SITE_URL is not set correctly or is a placeholder/default local dev URL ("${siteURL}"). Email verification link will be incorrect for production. Please set this in your Vercel (or other hosting) environment variables to your production URL (e.g., https://prompt-forge-blond.vercel.app). For local development, ensure it points to your actual local dev server URL if not the default.`;
         console.error(errorMsg);
       }
-
       const actionCodeSettings: ActionCodeSettings = {
-        url: siteURL ? `${siteURL}/complete-profile` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/complete-profile'),
+        url: siteURL ? `${siteURL}/?firstLogin=true` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/?firstLogin=true'),
         handleCodeInApp: true,
       };
-      await sendEmailVerification(userCredential.user, actionCodeSettings);
+      // This sendEmailVerification call uses the "Email address verification" template
+      // configured in your Firebase console for initial user signup.
+      await sendEmailVerification(user, actionCodeSettings);
     }
     return userCredential;
   } catch (error) {
     console.error("Error during Email/Password Sign-Up:", error);
-    throw error;
+    throw error; // Rethrow to be caught by the form handler
   }
 };
 
@@ -109,12 +162,10 @@ export const updateUserEmail = async (currentPasswordForReauth: string, newEmail
   
   try {
     await reauthenticateWithCredential(user, credential);
-    await firebaseUpdateEmail(user, newEmail); // Request Firebase to update the email
+    await firebaseUpdateEmail(user, newEmail);
     
     // After requesting an email update, Firebase requires the new email to be verified.
-    // This sendEmailVerification call will use the "Email address verification" template
-    // configured in your Firebase console.
-    // The actionCodeSettings determine the URL the user is redirected to after successful verification.
+    // This uses the "Email address verification" template from your Firebase console.
     const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
     if (!siteURL || siteURL.includes("your-site-url") || siteURL === "http://localhost:9000" || siteURL === "http://localhost:3000" || siteURL === "PLACEHOLDER_SITE_URL_NOT_SET_IN_ENV") {
         const errorMsg = `CRITICAL_CONFIG_ERROR (Firebase Auth - updateUserEmail): NEXT_PUBLIC_SITE_URL is not set correctly or is a placeholder/default local dev URL ("${siteURL}"). Email verification link for new email will be incorrect. Please set this in your Vercel environment variables.`;
@@ -151,14 +202,13 @@ export const updateUserPassword = async (currentPasswordForReauth: string, newPa
 
 export const sendPasswordResetEmail = async (email: string): Promise<void> => {
   // This function uses the "Password reset" template configured in your Firebase console.
-  // The actionCodeSettings determine the URL the user is redirected to after a successful reset.
   const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
   if (!siteURL || siteURL.includes("your-site-url") || siteURL === "http://localhost:9000" || siteURL === "http://localhost:3000" || siteURL === "PLACEHOLDER_SITE_URL_NOT_SET_IN_ENV") {
         const errorMsg = `CRITICAL_CONFIG_ERROR (Firebase Auth - sendPasswordResetEmail): NEXT_PUBLIC_SITE_URL is not set correctly or is a placeholder/default local dev URL ("${siteURL}"). Password reset link will be incorrect. Please set this in your Vercel environment variables.`;
         console.error(errorMsg);
       }
   const actionCodeSettings: ActionCodeSettings = {
-    url: siteURL ? `${siteURL}/login` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/login'), // Redirect to login page after reset
+    url: siteURL ? `${siteURL}/login` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/login'), 
     handleCodeInApp: true,
   };
   try {
@@ -170,7 +220,6 @@ export const sendPasswordResetEmail = async (email: string): Promise<void> => {
     }
   }
 };
-
 
 export const getFirebaseAuthErrorMessage = (error: any): string => {
   if (typeof error === 'object' && error !== null && 'code' in error) {
@@ -205,7 +254,9 @@ export const getFirebaseAuthErrorMessage = (error: any): string => {
       default:
         return `An unexpected error occurred: ${authError.message} (Code: ${authError.code})`;
     }
+  } else if (error && typeof error.message === 'string') {
+    return error.message; // Catch custom errors thrown (like "Failed to create user profile in database.")
   }
   return 'An unexpected error occurred. Please try again.';
 };
-
+    

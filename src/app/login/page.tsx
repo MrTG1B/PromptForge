@@ -4,20 +4,21 @@
 
 import { useState, type SVGProps, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { signInWithGoogle, signInWithFacebook, signUpWithEmailPasswordAndSendVerification, signInWithEmailPassword, getFirebaseAuthErrorMessage, signOut } from '@/lib/firebase/auth';
+import { signInWithGoogle, signInWithFacebook, signUpWithEmailPasswordAndSendVerification, signInWithEmailPassword, getFirebaseAuthErrorMessage } from '@/lib/firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import PhoneNumberInput from '@/components/ui/phone-number-input';
 import { Loader2, LogIn, UserPlus, AlertTriangle, Eye, EyeOff, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
-
 
 const GoogleIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" {...props}>
@@ -41,7 +42,8 @@ const loginSchema = z.object({
 });
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-const signUpPasswordValidation = z.string()
+const currentYear = new Date().getFullYear();
+const passwordValidation = z.string()
   .min(8, { message: "Password must be at least 8 characters." })
   .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter." })
   .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter." })
@@ -49,13 +51,42 @@ const signUpPasswordValidation = z.string()
   .regex(/[^A-Za-z0-9]/, { message: "Password must contain at least one special character." });
 
 const signUpSchema = z.object({
+  firstName: z.string().min(1, { message: "First name is required." }),
+  lastName: z.string().min(1, { message: "Last name is required." }),
+  dobDay: z.string({ required_error: "Day is required." })
+    .min(1, {message: "Day is required."})
+    .refine(val => {
+        const dayNum = parseInt(val, 10);
+        return /^\d{1,2}$/.test(val) && dayNum >= 1 && dayNum <= 31;
+    }, { message: "Day must be 1-31." }),
+  dobMonth: z.string({ required_error: "Month is required." }).min(1, {message: "Month is required."}),
+  dobYear: z.string({ required_error: "Year is required." })
+    .length(4, { message: "Year must be 4 digits."})
+    .refine(val => {
+        const yearNum = parseInt(val, 10);
+        return /^\d{4}$/.test(val) && yearNum >= 1900 && yearNum <= currentYear;
+    }, { message: `Year must be between 1900 and ${currentYear}.` }),
+  mobileNumber: z.string({ required_error: "Mobile number is required."})
+    .min(1, { message: "Mobile number is required."}) 
+    .regex(/^\+\d{1,3}\d{4,14}$/, { message: "Invalid mobile number format (e.g., +11234567890)."}),
   email: z.string().email({ message: "Invalid email address." }),
-  password: signUpPasswordValidation,
-  confirmPassword: signUpPasswordValidation,
+  password: passwordValidation,
+  confirmPassword: passwordValidation,
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match.",
   path: ["confirmPassword"],
+}).refine(data => { // Date of Birth validation
+  const day = parseInt(data.dobDay, 10);
+  const month = parseInt(data.dobMonth, 10);
+  const year = parseInt(data.dobYear, 10);
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === (month - 1) && date.getDate() === day;
+}, {
+  message: "The date of birth entered is not a valid date.",
+  path: ["dobDay"], 
 });
+
 type SignUpFormValues = z.infer<typeof signUpSchema>;
 
 interface PasswordCriteria {
@@ -67,12 +98,17 @@ interface PasswordCriteria {
 }
 
 const initialPasswordCriteria: PasswordCriteria = {
-  minLength: false,
-  uppercase: false,
-  lowercase: false,
-  number: false,
-  specialChar: false,
+  minLength: false, uppercase: false, lowercase: false, number: false, specialChar: false,
 };
+
+const monthOptions = [
+  { value: "1", label: "January" }, { value: "2", label: "February" },
+  { value: "3", label: "March" }, { value: "4", label: "April" },
+  { value: "5", label: "May" }, { value: "6", label: "June" },
+  { value: "7", label: "July" }, { value: "8", label: "August" },
+  { value: "9", label: "September" }, { value: "10", label: "October" },
+  { value: "11", label: "November" }, { value: "12", label: "December" }
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -89,13 +125,15 @@ export default function LoginPage() {
   const [passwordCriteria, setPasswordCriteria] = useState<PasswordCriteria>(initialPasswordCriteria);
   const [showPasswordCriteria, setShowPasswordCriteria] = useState(false);
 
-
   const { register: registerLogin, handleSubmit: handleSubmitLogin, formState: { errors: loginErrors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
 
-  const { register: registerSignUp, handleSubmit: handleSubmitSignUp, formState: { errors: signUpErrors }, watch } = useForm<SignUpFormValues>({
+  const { control: signUpControl, register: registerSignUp, handleSubmit: handleSubmitSignUp, formState: { errors: signUpErrors }, watch } = useForm<SignUpFormValues>({
     resolver: zodResolver(signUpSchema),
+    defaultValues: {
+        firstName: '', lastName: '', dobDay: '', dobMonth: '', dobYear: '', mobileNumber: '', email: '', password: '', confirmPassword: ''
+    }
   });
   
   const watchedSignUpPassword = watch("password");
@@ -116,11 +154,10 @@ export default function LoginPage() {
     }
   }, [watchedSignUpPassword, activeTab]);
 
-
   const handleAuthSuccess = () => { 
     toast({ title: "Success!", description: "Logged in successfully." });
-    router.push('/'); // Redirect to home or complete-profile if needed
-    router.refresh(); // Refresh server components
+    router.push('/'); 
+    router.refresh();
   };
 
   const handleAuthError = (authError: any) => {
@@ -146,8 +183,16 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
     try {
-      await signUpWithEmailPasswordAndSendVerification(data.email, data.password);
-      // User is now redirected to a dedicated verification page by router.push
+      await signUpWithEmailPasswordAndSendVerification(
+        data.email, 
+        data.password,
+        data.firstName,
+        data.lastName,
+        data.dobDay,
+        data.dobMonth,
+        data.dobYear,
+        data.mobileNumber
+      );
       router.push('/auth/verify-email'); 
     } catch (authError) {
       handleAuthError(authError);
@@ -251,6 +296,52 @@ export default function LoginPage() {
             </TabsContent>
             <TabsContent value="signup" className="space-y-6 pt-6">
               <form onSubmit={handleSubmitSignUp(onSignUpSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input id="firstName" {...registerSignUp("firstName")} placeholder="e.g., Jane" aria-invalid={signUpErrors.firstName ? "true" : "false"} />
+                    {signUpErrors.firstName && <p className="text-sm text-destructive mt-1">{signUpErrors.firstName.message}</p>}
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input id="lastName" {...registerSignUp("lastName")} placeholder="e.g., Doe" aria-invalid={signUpErrors.lastName ? "true" : "false"} />
+                    {signUpErrors.lastName && <p className="text-sm text-destructive mt-1">{signUpErrors.lastName.message}</p>}
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Date of Birth</Label>
+                  <div className="grid grid-cols-3 gap-3 mt-1">
+                    <div>
+                      <Label htmlFor="dobDay" className="sr-only">Day</Label>
+                      <Input id="dobDay" type="number" {...registerSignUp("dobDay")} placeholder="DD" aria-invalid={signUpErrors.dobDay ? "true" : "false"} />
+                      {signUpErrors.dobDay && <p className="text-sm text-destructive mt-1">{signUpErrors.dobDay.message}</p>}
+                    </div>
+                    <div>
+                      <Label htmlFor="dobMonth" className="sr-only">Month</Label>
+                      <Controller name="dobMonth" control={signUpControl} render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value || ''} disabled={field.disabled}>
+                          <SelectTrigger id="dobMonth" aria-label="Month" aria-invalid={signUpErrors.dobMonth ? "true" : "false"}><SelectValue placeholder="Month" /></SelectTrigger>
+                          <SelectContent>{monthOptions.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}</SelectContent>
+                        </Select>
+                      )} />
+                      {signUpErrors.dobMonth && <p className="text-sm text-destructive mt-1">{signUpErrors.dobMonth.message}</p>}
+                    </div>
+                    <div>
+                      <Label htmlFor="dobYear" className="sr-only">Year</Label>
+                      <Input id="dobYear" type="number" {...registerSignUp("dobYear")} placeholder="YYYY" aria-invalid={signUpErrors.dobYear ? "true" : "false"} />
+                      {signUpErrors.dobYear && <p className="text-sm text-destructive mt-1">{signUpErrors.dobYear.message}</p>}
+                    </div>
+                  </div>
+                  {signUpErrors.root?.message && !signUpErrors.dobDay && !signUpErrors.dobMonth && !signUpErrors.dobYear && (<p className="text-sm text-destructive mt-1 col-span-3">{signUpErrors.root.message}</p>)}
+                </div>
+                
+                <div>
+                  <Label htmlFor="mobileNumber">Mobile Number</Label>
+                  <Controller name="mobileNumber" control={signUpControl} defaultValue="" render={({ field }) => (<PhoneNumberInput value={field.value} onChange={field.onChange} defaultCountry="IN" disabled={field.disabled} />)} />
+                  {signUpErrors.mobileNumber && <p className="text-sm text-destructive mt-1">{signUpErrors.mobileNumber.message}</p>}
+                </div>
+
                 <div>
                   <Label htmlFor="signup-email">Email</Label>
                   <Input id="signup-email" type="email" {...registerSignUp("email")} placeholder="you@example.com" aria-invalid={signUpErrors.email ? "true" : "false"} />
@@ -358,3 +449,4 @@ export default function LoginPage() {
     </div>
   );
 }
+    
