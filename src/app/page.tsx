@@ -86,7 +86,7 @@ export default function HomePage() {
 
   // User is not logged in - show landing page
   return (
-    <div className="container mx-auto px-4 py-8 overflow-x-hidden bg-animated-gradient min-h-[calc(100vh-theme(spacing.16))]">
+    <div className="container mx-auto px-4 py-8 overflow-x-hidden min-h-[calc(100vh-theme(spacing.16))]">
       <div className="flex flex-col items-center justify-center text-center">
         {/* Hero Section */}
         <div className="animate-in fade-in-0 slide-in-from-top-8 duration-700">
@@ -111,11 +111,10 @@ export default function HomePage() {
         {/* Feature Highlights Section */}
         <div
           className="mt-24 w-full max-w-5xl animate-in fade-in-0 slide-in-from-bottom-12 duration-500 delay-200"
-          data-animate-on-scroll
         >
           <h2 className="text-3xl font-semibold font-headline text-foreground mb-12">Why Choose PromptForge?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-300 hover:scale-105" data-animate-on-scroll>
+            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-300 hover:scale-105">
               <CardHeader className="items-center">
                 <div className="bg-primary/10 p-4 rounded-full mb-4 inline-block">
                   <Zap className="h-8 w-8 text-primary" />
@@ -128,7 +127,7 @@ export default function HomePage() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-400 hover:scale-105" data-animate-on-scroll>
+            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-400 hover:scale-105">
               <CardHeader className="items-center">
                   <div className="bg-primary/10 p-4 rounded-full mb-4 inline-block">
                     <Settings2 className="h-8 w-8 text-primary" />
@@ -141,7 +140,7 @@ export default function HomePage() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-500 hover:scale-105" data-animate-on-scroll>
+            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-500 hover:scale-105">
               <CardHeader className="items-center">
                 <div className="bg-primary/10 p-4 rounded-full mb-4 inline-block">
                     <LayoutGrid className="h-8 w-8 text-primary" />
@@ -159,7 +158,6 @@ export default function HomePage() {
 
         <div
           className="mt-24 w-full max-w-3xl animate-in fade-in-0 zoom-in-90 duration-500 delay-300"
-          data-animate-on-scroll
         >
             <h3 className="text-2xl font-semibold font-headline text-foreground mb-8">See It In Action</h3>
             <div className="bg-card p-2 rounded-lg shadow-xl border border-border transition-all duration-300 hover:scale-105 hover:shadow-2xl">
@@ -177,7 +175,6 @@ export default function HomePage() {
 
         <div
           className="mt-24 mb-10 py-16 bg-muted/30 rounded-lg w-full max-w-4xl px-6 animate-in fade-in-0 slide-in-from-bottom-12 duration-700 delay-300"
-          data-animate-on-scroll
         >
             <h2 className="text-3xl font-semibold font-headline text-foreground mb-5">Ready to Forge Perfect Prompts?</h2>
             <p className="text-muted-foreground mb-10 max-w-xl mx-auto text-lg">
