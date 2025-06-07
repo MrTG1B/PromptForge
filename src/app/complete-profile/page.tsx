@@ -47,35 +47,39 @@ if (!APPWRITE_ENDPOINT || APPWRITE_ENDPOINT === "YOUR_APPWRITE_ENDPOINT_NOT_SET"
 const currentYear = new Date().getFullYear();
 const profileSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
-  lastName: z.string().optional(),
-  dobDay: z.string().optional().refine(val => {
-    if (!val) return true; 
-    const dayNum = parseInt(val, 10);
-    return /^\d{1,2}$/.test(val) && dayNum >= 1 && dayNum <= 31;
-  }, { message: "Day must be 1-31." }),
-  dobMonth: z.string().optional(),
-  dobYear: z.string().optional().refine(val => {
-    if (!val) return true; 
-    const yearNum = parseInt(val, 10);
-    return /^\d{4}$/.test(val) && yearNum >= 1900 && yearNum <= currentYear;
-  }, { message: `Year must be 1900-${currentYear}.` }),
-  mobileNumber: z.string().regex(/^\+\d{1,3}\d{4,14}$/, { message: "Invalid mobile number format (e.g., +11234567890)."}).optional().or(z.literal('')),
+  lastName: z.string().min(1, { message: "Last name is required." }),
+  dobDay: z.string({ required_error: "Day is required." })
+    .min(1, {message: "Day is required."})
+    .refine(val => {
+        const dayNum = parseInt(val, 10);
+        return /^\d{1,2}$/.test(val) && dayNum >= 1 && dayNum <= 31;
+    }, { message: "Day must be 1-31." }),
+  dobMonth: z.string({ required_error: "Month is required." }).min(1, {message: "Month is required."}),
+  dobYear: z.string({ required_error: "Year is required." })
+    .length(4, { message: "Year must be 4 digits."})
+    .refine(val => {
+        const yearNum = parseInt(val, 10);
+        return /^\d{4}$/.test(val) && yearNum >= 1900 && yearNum <= currentYear;
+    }, { message: `Year must be between 1900 and ${currentYear}.` }),
+  mobileNumber: z.string({ required_error: "Mobile number is required."})
+    .min(1, { message: "Mobile number is required."}) // Ensures not an empty string if regex allows (it doesn't here)
+    .regex(/^\+\d{1,3}\d{4,14}$/, { message: "Invalid mobile number format (e.g., +11234567890)."}),
 }).refine(data => {
-  const { dobDay, dobMonth, dobYear } = data;
-  if ((dobDay || dobMonth || dobYear) && (!dobDay || !dobMonth || !dobYear)) {
+  // This refine assumes dobDay, dobMonth, dobYear are provided, as they are individually required.
+  // It only validates if the provided combination forms a real date.
+  const day = parseInt(data.dobDay, 10);
+  const month = parseInt(data.dobMonth, 10);
+  const year = parseInt(data.dobYear, 10);
+
+  // Basic check if parsing failed, though individual field validation should catch non-numbers.
+  if (isNaN(day) || isNaN(month) || isNaN(year)) {
     return false;
   }
-  if (dobDay && dobMonth && dobYear) {
-    const day = parseInt(dobDay, 10);
-    const month = parseInt(dobMonth, 10);
-    const year = parseInt(dobYear, 10);
-    const date = new Date(year, month - 1, day);
-    return date.getFullYear() === year && date.getMonth() === (month - 1) && date.getDate() === day;
-  }
-  return true;
+  const date = new Date(year, month - 1, day); // month is 0-indexed
+  return date.getFullYear() === year && date.getMonth() === (month - 1) && date.getDate() === day;
 }, {
-  message: "Please enter a complete and valid date of birth, or leave all date fields empty.",
-  path: ["dobDay"], 
+  message: "The date of birth entered is not a valid date.",
+  path: ["dobDay"], // Associate error with one of the date fields
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -114,10 +118,17 @@ async function getCroppedImageFile(
   const scaleX = image.naturalWidth / image.width;
   const scaleY = image.naturalHeight / image.height;
 
-  const sourceX = crop.x * scaleX;
-  const sourceY = crop.y * scaleY;
-  const sourceWidth = crop.width * scaleX;
-  const sourceHeight = crop.height * scaleY;
+  // Clamp crop dimensions to be within the image boundaries
+  const sourceX = Math.max(0, crop.x * scaleX);
+  const sourceY = Math.max(0, crop.y * scaleY);
+  const sourceWidth = Math.min(image.naturalWidth - sourceX, crop.width * scaleX);
+  const sourceHeight = Math.min(image.naturalHeight - sourceY, crop.height * scaleY);
+  
+  if (sourceWidth <= 0 || sourceHeight <= 0) {
+    console.error("Invalid crop dimensions (<=0). Width:", sourceWidth, "Height:", sourceHeight);
+    return null;
+  }
+
 
   canvas.width = sourceWidth;
   canvas.height = sourceHeight;
@@ -201,8 +212,8 @@ export default function CompleteProfilePage() {
       if (storedDataString) {
         try {
           const storedData: StoredProfileData = JSON.parse(storedDataString);
-          if (storedData.firstName && !user.displayName) setValue('firstName', storedData.firstName);
-          if (storedData.lastName && !user.displayName) setValue('lastName', storedData.lastName || '');
+          if (storedData.firstName && !watch('firstName')) setValue('firstName', storedData.firstName);
+          if (storedData.lastName && !watch('lastName')) setValue('lastName', storedData.lastName || '');
           if (storedData.dobDay) setValue('dobDay', storedData.dobDay);
           if (storedData.dobMonth) setValue('dobMonth', storedData.dobMonth);
           if (storedData.dobYear) setValue('dobYear', storedData.dobYear);
@@ -212,7 +223,7 @@ export default function CompleteProfilePage() {
         }
       }
     }
-  }, [user, setValue]);
+  }, [user, setValue, watch]);
 
 
   useEffect(() => {
@@ -347,6 +358,8 @@ export default function CompleteProfilePage() {
       console.log("Firebase Auth profile updated. Name:", newDisplayName, "PhotoURL:", newPhotoURL);
 
       const profileDataToStore: StoredProfileData = {
+        firstName: data.firstName,
+        lastName: data.lastName,
         dobDay: data.dobDay,
         dobMonth: data.dobMonth,
         dobYear: data.dobYear,
@@ -470,18 +483,19 @@ export default function CompleteProfilePage() {
                 {errors.firstName && <p className="text-sm text-destructive mt-1">{errors.firstName.message}</p>}
               </div>
               <div>
-                <Label htmlFor="lastName">Last Name (Optional)</Label>
+                <Label htmlFor="lastName">Last Name</Label>
                 <Input id="lastName" {...register("lastName")} placeholder="e.g., Doe" aria-invalid={errors.lastName ? "true" : "false"} />
                 {errors.lastName && <p className="text-sm text-destructive mt-1">{errors.lastName.message}</p>}
               </div>
             </div>
 
             <div>
-              <Label>Date of Birth (Optional)</Label>
+              <Label>Date of Birth</Label>
               <div className="grid grid-cols-3 gap-3 mt-1">
                 <div>
                   <Label htmlFor="dobDay" className="sr-only">Day</Label>
                   <Input id="dobDay" type="number" {...register("dobDay")} placeholder="DD" aria-invalid={errors.dobDay ? "true" : "false"} />
+                  {errors.dobDay && <p className="text-sm text-destructive mt-1">{errors.dobDay.message}</p>}
                 </div>
                 <div>
                   <Label htmlFor="dobMonth" className="sr-only">Month</Label>
@@ -490,7 +504,7 @@ export default function CompleteProfilePage() {
                     control={control}
                     render={({ field }) => (
                       <Select onValueChange={field.onChange} value={field.value || ''} disabled={field.disabled}>
-                        <SelectTrigger id="dobMonth" aria-label="Month">
+                        <SelectTrigger id="dobMonth" aria-label="Month" aria-invalid={errors.dobMonth ? "true" : "false"}>
                           <SelectValue placeholder="Month" />
                         </SelectTrigger>
                         <SelectContent>
@@ -501,20 +515,21 @@ export default function CompleteProfilePage() {
                       </Select>
                     )}
                   />
+                   {errors.dobMonth && <p className="text-sm text-destructive mt-1">{errors.dobMonth.message}</p>}
                 </div>
                 <div>
                   <Label htmlFor="dobYear" className="sr-only">Year</Label>
                   <Input id="dobYear" type="number" {...register("dobYear")} placeholder="YYYY" aria-invalid={errors.dobYear ? "true" : "false"} />
+                  {errors.dobYear && <p className="text-sm text-destructive mt-1">{errors.dobYear.message}</p>}
                 </div>
               </div>
-              {errors.dobDay && <p className="text-sm text-destructive mt-1 col-span-3">{errors.dobDay.message}</p>}
               {errors.root?.message && !errors.dobDay && !errors.dobMonth && !errors.dobYear && (
                 <p className="text-sm text-destructive mt-1 col-span-3">{errors.root.message}</p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="mobileNumber">Mobile Number (Optional, stored locally)</Label>
+              <Label htmlFor="mobileNumber">Mobile Number</Label>
               <Controller
                 name="mobileNumber"
                 control={control}
@@ -524,6 +539,7 @@ export default function CompleteProfilePage() {
                     value={field.value}
                     onChange={field.onChange}
                     defaultCountry="IN" 
+                    disabled={field.disabled}
                   />
                 )}
               />
@@ -540,3 +556,8 @@ export default function CompleteProfilePage() {
     </div>
   );
 }
+
+    
+        
+      
+    
