@@ -14,13 +14,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowRight, Crop, Camera } from 'lucide-react';
+import { Loader2, ArrowRight, Camera } from 'lucide-react';
 import { auth } from '@/lib/firebase/config';
 import { updateProfile } from 'firebase/auth';
 import { storage as appwriteStorage } from '@/lib/appwrite/config';
 import { ID } from 'appwrite';
+import PhoneNumberInput from '@/components/ui/phone-number-input';
 
 import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -57,7 +58,7 @@ const profileSchema = z.object({
     const yearNum = parseInt(val, 10);
     return /^\d{4}$/.test(val) && yearNum >= 1900 && yearNum <= currentYear;
   }, { message: `Year must be 1900-${currentYear}.` }),
-  mobileNumber: z.string().regex(/^\+?[1-9]\d{1,14}$/, { message: "Invalid mobile number format (e.g., +1234567890 or 1234567890)."}).optional().or(z.literal('')),
+  mobileNumber: z.string().regex(/^\+\d{1,3}\d{4,14}$/, { message: "Invalid mobile number format (e.g., +11234567890)."}).optional().or(z.literal('')),
 }).refine(data => {
   const { dobDay, dobMonth, dobYear } = data;
   if ((dobDay || dobMonth || dobYear) && (!dobDay || !dobMonth || !dobYear)) {
@@ -167,7 +168,7 @@ export default function CompleteProfilePage() {
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
 
 
-  const { control, register, handleSubmit, formState: { errors }, setValue } = useForm<ProfileFormValues>({
+  const { control, register, handleSubmit, formState: { errors }, setValue, watch } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       fullName: '',
@@ -177,6 +178,8 @@ export default function CompleteProfilePage() {
       mobileNumber: '',
     }
   });
+
+  const mobileNumberValue = watch('mobileNumber'); // Watch mobile number for debugging or other purposes
 
   useEffect(() => {
     if (user) {
@@ -227,7 +230,8 @@ export default function CompleteProfilePage() {
       setOriginalFileName(file.name);
       setCrop(undefined); 
       setCompletedCrop(null);
-      setCroppedImageFile(null); 
+      // Do not reset croppedImageFile here, allow user to re-crop if they made a mistake.
+      // It will be overwritten if they save a new crop.
       const reader = new FileReader();
       reader.addEventListener('load', () => {
         setImgSrc(reader.result?.toString() || '');
@@ -241,7 +245,7 @@ export default function CompleteProfilePage() {
     imgRef.current = e.currentTarget;
     const { width, height } = e.currentTarget;
     const initialCrop = centerCrop(
-      makeAspectCrop({ unit: '%', width: 90 }, 1, width, height),
+      makeAspectCrop({ unit: '%', width: 90 }, 1, width, height), // aspect ratio 1 for square/circle
       width,
       height
     );
@@ -262,23 +266,24 @@ export default function CompleteProfilePage() {
           setPreview(reader.result as string);
         };
         reader.readAsDataURL(croppedFile);
-        toast({ title: "Crop Saved", description: "Image crop applied.", variant: "default" });
+        toast({ title: "Crop Saved", description: "Image crop applied and preview updated.", variant: "default" });
       }
     } catch (e) {
       console.error('Error saving cropped image:', e);
       toast({ title: "Cropping Error", description: "Could not save crop.", variant: "destructive" });
     } finally {
       setIsCropModalOpen(false);
-      if (fileInputRef.current) fileInputRef.current.value = ""; // Clear file input after modal closes
+      if (fileInputRef.current) fileInputRef.current.value = ""; 
     }
   };
 
   const handleCancelCrop = () => {
-    setImgSrc(null);
+    setImgSrc(null); // Clear the image source for cropper
     setCrop(undefined);
     setCompletedCrop(null);
     setIsCropModalOpen(false);
     if (fileInputRef.current) fileInputRef.current.value = ""; // Clear file input
+    // Do not reset croppedImageFile or preview here. User might have a previously saved crop they want to keep.
   };
 
   const onSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
@@ -414,15 +419,15 @@ export default function CompleteProfilePage() {
             </div>
             
             <Dialog open={isCropModalOpen} onOpenChange={(isOpen) => {
-                if (!isOpen) handleCancelCrop(); // Handle user closing modal (e.g., Esc key)
-                else setIsCropModalOpen(isOpen);
+                if (!isOpen) handleCancelCrop();
+                setIsCropModalOpen(isOpen);
              }}>
               <DialogContent className="sm:max-w-[425px] md:max-w-lg">
                 <DialogHeader>
                   <DialogTitle>Crop Your Image</DialogTitle>
                 </DialogHeader>
                 {imgSrc && (
-                  <div className="mt-4 p-2 border rounded-md bg-muted/30">
+                  <div className="mt-4 p-2 border rounded-md bg-muted/30 max-h-[60vh] overflow-y-auto">
                     <ReactCrop
                       crop={crop}
                       onChange={c => setCrop(c)}
@@ -438,7 +443,7 @@ export default function CompleteProfilePage() {
                         src={imgSrc}
                         ref={imgRef}
                         onLoad={onImageLoad}
-                        style={{ maxHeight: '400px', display: 'block', margin: 'auto' }}
+                        style={{ maxHeight: '50vh', display: 'block', margin: 'auto', objectFit: 'contain' }}
                       />
                     </ReactCrop>
                   </div>
@@ -496,11 +501,22 @@ export default function CompleteProfilePage() {
 
             <div>
               <Label htmlFor="mobileNumber">Mobile Number (Optional, stored locally)</Label>
-              <Input id="mobileNumber" {...register("mobileNumber")} placeholder="e.g., +11234567890" aria-invalid={errors.mobileNumber ? "true" : "false"} />
+              <Controller
+                name="mobileNumber"
+                control={control}
+                defaultValue=""
+                render={({ field }) => (
+                  <PhoneNumberInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    defaultCountry="US" // You can set a default country
+                  />
+                )}
+              />
               {errors.mobileNumber && <p className="text-sm text-destructive mt-1">{errors.mobileNumber.message}</p>}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting || (isCropModalOpen && !completedCrop && !user?.photoURL) }>
+            <Button type="submit" className="w-full" disabled={isSubmitting || (isCropModalOpen && (!completedCrop && !preview) ) }>
               {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <ArrowRight className="mr-2 h-4 w-4" />}
               Save and Continue
             </Button>
