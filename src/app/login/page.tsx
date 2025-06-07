@@ -46,7 +46,7 @@ const signUpSchema = z.object({
   confirmPassword: z.string().min(6, { message: "Confirm password must be at least 6 characters." }),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match.",
-  path: ["confirmPassword"], // Point error to confirmPassword field
+  path: ["confirmPassword"],
 });
 type SignUpFormValues = z.infer<typeof signUpSchema>;
 
@@ -69,10 +69,15 @@ export default function LoginPage() {
     resolver: zodResolver(signUpSchema),
   });
 
-  const handleAuthSuccess = () => {
-    toast({ title: "Success!", description: activeTab === "login" ? "Logged in successfully." : "Account created successfully." });
-    router.push('/'); // Redirect to homepage
-    router.refresh(); // Force refresh to update auth state if needed
+  const handleAuthSuccess = (isNewUserFromEmailPasswordSignUp: boolean) => {
+    if (isNewUserFromEmailPasswordSignUp) {
+      toast({ title: "Account Created!", description: "Please complete your profile." });
+      router.push('/complete-profile');
+    } else {
+      toast({ title: "Success!", description: "Logged in successfully." });
+      router.push('/');
+    }
+    router.refresh(); 
   };
 
   const handleAuthError = (authError: any) => {
@@ -86,7 +91,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithEmailPassword(data.email, data.password);
-      handleAuthSuccess();
+      handleAuthSuccess(false); // Existing user login
     } catch (authError) {
       handleAuthError(authError);
     }
@@ -97,7 +102,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signUpWithEmailPassword(data.email, data.password);
-      handleAuthSuccess();
+      handleAuthSuccess(true); // New user via email/password
     } catch (authError) {
       handleAuthError(authError);
     }
@@ -108,7 +113,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithGoogle();
-      handleAuthSuccess();
+      handleAuthSuccess(false); // Social sign-in, direct to home for now
     } catch (authError) {
       handleAuthError(authError);
     }
@@ -119,7 +124,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithFacebook();
-      handleAuthSuccess();
+      handleAuthSuccess(false); // Social sign-in, direct to home for now
     } catch (authError) {
       handleAuthError(authError);
     }
