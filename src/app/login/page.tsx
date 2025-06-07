@@ -7,7 +7,15 @@ import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { signInWithGoogle, signInWithFacebook, signUpWithEmailPasswordAndSendVerification, signInWithEmailPassword, getFirebaseAuthErrorMessage } from '@/lib/firebase/auth';
+import { 
+  signInWithGoogle, 
+  signInWithFacebook, 
+  signUpWithEmailPasswordAndSendVerification, 
+  signInWithEmailPassword, 
+  getFirebaseAuthErrorMessage 
+} from '@/lib/firebase/auth';
+import { db } from '@/lib/firebase/config'; // Import db
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'; // Import Firestore functions
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -154,9 +162,13 @@ export default function LoginPage() {
     }
   }, [watchedSignUpPassword, activeTab]);
 
-  const handleAuthSuccess = () => { 
+  const handleAuthSuccess = (isNewUser: boolean = false) => { 
     toast({ title: "Success!", description: "Logged in successfully." });
-    router.push('/'); 
+    if (isNewUser) {
+      router.push('/?firstLogin=true');
+    } else {
+      router.push('/'); 
+    }
     router.refresh();
   };
 
@@ -171,7 +183,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithEmailPassword(data.email, data.password);
-      handleAuthSuccess();
+      handleAuthSuccess(false); // Existing user
     } catch (authError) {
       handleAuthError(authError);
     } finally {
@@ -193,6 +205,8 @@ export default function LoginPage() {
         data.dobYear,
         data.mobileNumber
       );
+      // Redirection to /auth/verify-email now happens after signUpWithEmailPasswordAndSendVerification
+      // where the user will be redirected to /?firstLogin=true after clicking the verification link
       router.push('/auth/verify-email'); 
     } catch (authError) {
       handleAuthError(authError);
@@ -201,12 +215,38 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleAuth = async () => {
+  const handleOAuthSignIn = async (signInMethod: () => Promise<any>) => {
     setIsLoading(true);
     setError(null);
     try {
-      await signInWithGoogle();
-      handleAuthSuccess();
+      const firebaseUser = await signInMethod();
+      if (firebaseUser) {
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        const docSnap = await getDoc(userDocRef);
+        let isNewUserToApp = false;
+
+        if (!docSnap.exists()) {
+          isNewUserToApp = true;
+          const nameParts = firebaseUser.displayName?.split(' ') || [];
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+
+          await setDoc(userDocRef, {
+            firstName,
+            lastName,
+            email: firebaseUser.email || '',
+            photoURL: firebaseUser.photoURL || null,
+            emailVerified: firebaseUser.emailVerified, // OAuth emails are usually pre-verified
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            // dobDay, dobMonth, dobYear, mobileNumber will be empty for OAuth new users
+          }, { merge: true });
+        }
+        handleAuthSuccess(isNewUserToApp);
+      } else {
+        // This case should ideally not happen if signInMethod resolves successfully
+        handleAuthError(new Error("Sign-in process did not return a user."));
+      }
     } catch (authError) {
       handleAuthError(authError);
     } finally {
@@ -214,18 +254,14 @@ export default function LoginPage() {
     }
   };
 
-  const handleFacebookAuth = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await signInWithFacebook();
-      handleAuthSuccess();
-    } catch (authError) {
-      handleAuthError(authError);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleGoogleAuth = async () => {
+    await handleOAuthSignIn(signInWithGoogle);
   };
+
+  const handleFacebookAuth = async () => {
+    await handleOAuthSignIn(signInWithFacebook);
+  };
+
 
   const PasswordRequirement: React.FC<{ met: boolean; text: string }> = ({ met, text }) => (
     <li className={`flex items-center text-sm ${met ? 'text-green-600' : 'text-red-600'}`}>
@@ -449,4 +485,6 @@ export default function LoginPage() {
     </div>
   );
 }
+    
+
     
