@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, LogIn, UserPlus, AlertTriangle } from 'lucide-react';
+import { Loader2, LogIn, UserPlus, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 
@@ -56,6 +56,10 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("login");
+
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showSignUpPassword, setShowSignUpPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { register: registerLogin, handleSubmit: handleSubmitLogin, formState: { errors: loginErrors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -147,7 +151,26 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <Label htmlFor="login-password">Password</Label>
-                  <Input id="login-password" type="password" {...registerLogin("password")} placeholder="••••••••" aria-invalid={loginErrors.password ? "true" : "false"} />
+                  <div className="relative">
+                    <Input 
+                      id="login-password" 
+                      type={showLoginPassword ? "text" : "password"} 
+                      {...registerLogin("password")} 
+                      placeholder="••••••••" 
+                      aria-invalid={loginErrors.password ? "true" : "false"}
+                      className="pr-10"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 px-0" 
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                    >
+                      {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
                   {loginErrors.password && <p className="text-sm text-destructive mt-1">{loginErrors.password.message}</p>}
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
@@ -164,12 +187,50 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <Label htmlFor="signup-password">Password</Label>
-                  <Input id="signup-password" type="password" {...registerSignUp("password")} placeholder="Must be at least 6 characters" aria-invalid={signUpErrors.password ? "true" : "false"} />
+                   <div className="relative">
+                    <Input 
+                      id="signup-password" 
+                      type={showSignUpPassword ? "text" : "password"} 
+                      {...registerSignUp("password")} 
+                      placeholder="Must be at least 6 characters" 
+                      aria-invalid={signUpErrors.password ? "true" : "false"}
+                      className="pr-10"
+                    />
+                     <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 px-0" 
+                      onClick={() => setShowSignUpPassword(!showSignUpPassword)}
+                      aria-label={showSignUpPassword ? "Hide password" : "Show password"}
+                    >
+                      {showSignUpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
                   {signUpErrors.password && <p className="text-sm text-destructive mt-1">{signUpErrors.password.message}</p>}
                 </div>
                 <div>
                   <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input id="confirmPassword" type="password" {...registerSignUp("confirmPassword")} placeholder="Re-enter your password" aria-invalid={signUpErrors.confirmPassword ? "true" : "false"} />
+                  <div className="relative">
+                    <Input 
+                      id="confirmPassword" 
+                      type={showConfirmPassword ? "text" : "password"} 
+                      {...registerSignUp("confirmPassword")} 
+                      placeholder="Re-enter your password" 
+                      aria-invalid={signUpErrors.confirmPassword ? "true" : "false"}
+                      className="pr-10"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 px-0" 
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
                   {signUpErrors.confirmPassword && <p className="text-sm text-destructive mt-1">{signUpErrors.confirmPassword.message}</p>}
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>

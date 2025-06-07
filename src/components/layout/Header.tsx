@@ -2,11 +2,10 @@
 "use client";
 
 import Link from 'next/link';
-import Image from 'next/image'; // Added for the logo
-import LoginButton from '@/components/auth/LoginButton';
+import Image from 'next/image'; 
 import UserProfile from '@/components/auth/UserProfile';
 import { useAuth } from '@/hooks/useAuth';
-// Removed: import { Wand2 } from 'lucide-react'; // Wand2 icon is no longer used
+// LoginButton is no longer used here
 
 const Header: React.FC = () => {
   const { user, loading } = useAuth();
@@ -14,18 +13,19 @@ const Header: React.FC = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between">
-        <Link href="/" className="flex items-center"> {/* Removed space-x-2 as only logo is present */}
+        <Link href="/" className="flex items-center">
           <Image
             src="/promptforge-logo.png"
             alt="PromptForge Logo"
-            width={127} // Calculated for a height of 28px based on original aspect ratio
+            width={127} 
             height={28}
-            priority // Advisable for LCP elements like a header logo
+            priority 
           />
-          {/* The Wand2 icon and the separate "PromptForge" span have been removed */}
         </Link>
         <div className="flex items-center space-x-4">
-          {!loading && (user ? <UserProfile /> : <LoginButton />)}
+          {/* Only show UserProfile if user is logged in and not loading */}
+          {!loading && user && <UserProfile />}
+          {/* LoginButton is removed for logged-out state */}
         </div>
       </div>
     </header>
