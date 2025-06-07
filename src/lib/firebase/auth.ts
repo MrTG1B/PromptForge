@@ -1,4 +1,3 @@
-
 // src/lib/firebase/auth.ts
 import {
   GoogleAuthProvider,
@@ -54,9 +53,6 @@ export const signUpWithEmailPasswordAndSendVerification = async (email: string, 
       if (!siteURL || siteURL.includes("your-site-url") || siteURL === "http://localhost:9000" || siteURL === "http://localhost:3000") {
         const errorMsg = `CRITICAL_CONFIG_ERROR (Firebase Auth): NEXT_PUBLIC_SITE_URL is not set correctly or is a placeholder/default local dev URL ("${siteURL}"). Email verification link will be incorrect for production. Please set this in your Vercel (or other hosting) environment variables to your production URL (e.g., https://prompt-forge-blond.vercel.app). For local development, ensure it points to your actual local dev server URL if not the default.`;
         console.error(errorMsg);
-        // For production, we might want to throw an error or at least alert the user more directly
-        // that verification emails might not work. For now, a strong console error.
-        // throw new Error(errorMsg); // Uncomment to make it a hard failure if needed
       }
 
       const actionCodeSettings: ActionCodeSettings = {
@@ -95,17 +91,13 @@ export const onAuthStateChanged = (callback: (user: User) => void): (() => void)
   return firebaseOnAuthStateChanged(auth, callback);
 };
 
+// This function is not directly used for reauth in updateUserEmail/Password anymore as credential creation is handled there.
+// It's kept for potential other uses or if a direct reauth flow is needed elsewhere.
 export const reauthenticateUser = async (currentPassword_REMOVEME?: string): Promise<void> => {
-  // This function is problematic because it directly takes password.
-  // It should be called only after creating a credential.
-  // The actual reauth happens in updateUserEmail and updateUserPassword with a credential.
-  // This function might be misleading or unused if not careful.
-  // For now, let's assume the calling functions (updateUserEmail/Password) will handle credential creation.
   const user = auth.currentUser;
-  if (!user || !currentPassword_REMOVEME) { // currentPassword_REMOVEME is a placeholder name
+  if (!user || !currentPassword_REMOVEME) { 
     throw new Error("User not found or current password not provided for re-authentication.");
   }
-  console.warn("reauthenticateUser was called directly with a password, which is less secure. Prefer creating a credential first.");
   const credential = EmailAuthProvider.credential(user.email!, currentPassword_REMOVEME);
   await reauthenticateWithCredential(user, credential);
 };
@@ -124,11 +116,13 @@ export const updateUserEmail = async (currentPasswordForReauth: string, newEmail
   try {
     await reauthenticateWithCredential(user, credential);
     await firebaseUpdateEmail(user, newEmail);
+    
+    // Send verification to the new email
     const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
-      const actionCodeSettings: ActionCodeSettings = {
-        url: siteURL ? `${siteURL}/complete-profile` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/complete-profile'),
-        handleCodeInApp: true,
-      };
+    const actionCodeSettings: ActionCodeSettings = {
+      url: siteURL ? `${siteURL}/update-profile` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/update-profile'), // Redirect to update-profile or home after new email verification
+      handleCodeInApp: true,
+    };
     await sendEmailVerification(user, actionCodeSettings); 
   } catch (error) {
     console.error("Error updating email:", error);
