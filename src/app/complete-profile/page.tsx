@@ -56,7 +56,7 @@ const profileSchema = z.object({
     const yearNum = parseInt(val, 10);
     return /^\d{4}$/.test(val) && yearNum >= 1900 && yearNum <= currentYear;
   }, { message: `Year must be 1900-${currentYear}.` }),
-  profilePicture: z // This is for the file input itself, mainly for initial validation
+  profilePicture: z 
     .instanceof(FileList)
     .optional(),
   mobileNumber: z.string().regex(/^\+?[1-9]\d{1,14}$/, { message: "Invalid mobile number format (e.g., +1234567890 or 1234567890)."}).optional().or(z.literal('')),
@@ -97,7 +97,6 @@ const monthOptions = [
   { value: "11", label: "November" }, { value: "12", label: "December" }
 ];
 
-// Helper function to generate a cropped image file
 async function getCroppedImageFile(
   image: HTMLImageElement,
   crop: PixelCrop,
@@ -136,12 +135,11 @@ async function getCroppedImageFile(
           reject(new Error('Canvas is empty'));
           return;
         }
-        // Preserve original file type if possible, fallback to png
         const fileType = ACCEPTED_IMAGE_TYPES.find(type => originalFileName.toLowerCase().endsWith(type.split('/')[1])) || 'image/png';
         resolve(new File([blob], originalFileName, { type: fileType }));
       },
-      'image/png', // Fallback type for toBlob
-      0.9 // Quality (0-1)
+      'image/png', 
+      0.9 
     );
   });
 }
@@ -158,7 +156,7 @@ export default function CompleteProfilePage() {
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const [croppedImageFile, setCroppedImageFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null); // This will show user.photoURL or cropped preview
+  const [preview, setPreview] = useState<string | null>(null); 
   const [originalFileName, setOriginalFileName] = useState<string>('profile.png');
 
 
@@ -177,7 +175,7 @@ export default function CompleteProfilePage() {
     if (user) {
       setValue('fullName', user.displayName || '');
       if (user.photoURL) {
-        setPreview(user.photoURL); // Show existing photo from Firebase Auth
+        setPreview(user.photoURL); 
       }
 
       const storedDataString = localStorage.getItem(`profileData_${user.uid}`);
@@ -208,7 +206,6 @@ export default function CompleteProfilePage() {
         const croppedFile = await getCroppedImageFile(image, completedCrop, originalFileName);
         if (croppedFile) {
           setCroppedImageFile(croppedFile);
-          // Create a new data URL for the preview state from the cropped blob
           const reader = new FileReader();
           reader.onloadend = () => {
             setPreview(reader.result as string);
@@ -222,7 +219,7 @@ export default function CompleteProfilePage() {
     };
 
     generateCroppedPreview();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Only re-run if completedCrop, imgSrc, or imgRef change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completedCrop, originalFileName]);
 
 
@@ -235,32 +232,30 @@ export default function CompleteProfilePage() {
   const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      // Validate file before setting
       if (file.size > MAX_FILE_SIZE) {
         toast({ title: "File too large", description: `Max image size is ${MAX_FILE_SIZE / 1024 / 1024}MB.`, variant: "destructive" });
-        setValue('profilePicture', undefined); // Clear RHF value
+        setValue('profilePicture', undefined); 
         return;
       }
       if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
         toast({ title: "Invalid file type", description: `Only JPG and PNG formats are supported.`, variant: "destructive" });
-        setValue('profilePicture', undefined); // Clear RHF value
+        setValue('profilePicture', undefined); 
         return;
       }
       
-      clearErrors("profilePicture"); // Clear any previous RHF errors for this field
+      clearErrors("profilePicture"); 
       setOriginalFileName(file.name);
-      setCrop(undefined); // Reset crop on new image
+      setCrop(undefined); 
       setCompletedCrop(null);
       setCroppedImageFile(null);
       const reader = new FileReader();
       reader.addEventListener('load', () => setImgSrc(reader.result?.toString() || ''));
       reader.readAsDataURL(file);
     } else {
-      // User cleared the file input
       setImgSrc(null);
       setCroppedImageFile(null);
       setCompletedCrop(null);
-      setPreview(user?.photoURL || null); // Revert to Firebase Auth photo or null
+      setPreview(user?.photoURL || null); 
     }
   };
 
@@ -272,7 +267,7 @@ export default function CompleteProfilePage() {
           unit: '%',
           width: 90,
         },
-        1, // Aspect ratio 1:1 for square
+        1, 
         width,
         height
       ),
@@ -303,7 +298,7 @@ export default function CompleteProfilePage() {
         return;
     }
 
-    let newPhotoURL = user.photoURL; // Default to current photo
+    let newPhotoURL = user.photoURL; 
 
     try {
       if (croppedImageFile) { 
@@ -434,7 +429,7 @@ export default function CompleteProfilePage() {
                 accept={ACCEPTED_IMAGE_TYPES.join(',')}
                 {...register("profilePicture")} 
                 onChange={onSelectFile} 
-                className="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border file:border-input file:bg-background file:text-sm file:font-medium file:text-foreground hover:file:bg-accent hover:file:text-accent-foreground"
+                className="mt-1 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/90"
               />
               {errors.profilePicture && <p className="text-sm text-destructive mt-1">{errors.profilePicture.message as string}</p>}
               
@@ -445,7 +440,7 @@ export default function CompleteProfilePage() {
                     crop={crop}
                     onChange={c => setCrop(c)}
                     onComplete={c => setCompletedCrop(c)}
-                    aspect={1} // Square crop
+                    aspect={1} 
                     minWidth={50}
                     minHeight={50}
                     ruleOfThirds
@@ -494,7 +489,8 @@ export default function CompleteProfilePage() {
     </div>
   );
 }
-
         
         
       
+
+    
