@@ -18,9 +18,26 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, UserCheck, ArrowRight } from 'lucide-react';
 import { auth } from '@/lib/firebase/config';
 import { updateProfile } from 'firebase/auth';
+import { storage as appwriteStorage } from '@/lib/appwrite/config'; // Import Appwrite storage
+import { ID } from 'appwrite';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const APPWRITE_BUCKET_ID = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID;
+const APPWRITE_PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+
+
+if (!APPWRITE_BUCKET_ID) {
+  console.error("CRITICAL_CONFIG_ERROR: NEXT_PUBLIC_APPWRITE_BUCKET_ID is not set. Image uploads will fail.");
+}
+if (!APPWRITE_PROJECT_ID) {
+  console.error("CRITICAL_CONFIG_ERROR: NEXT_PUBLIC_APPWRITE_PROJECT_ID is not set. Image URL construction might fail.");
+}
+if (!APPWRITE_ENDPOINT) {
+  console.error("CRITICAL_CONFIG_ERROR: NEXT_PUBLIC_APPWRITE_ENDPOINT is not set. Image URL construction might fail.");
+}
+
 
 const profileSchema = z.object({
   fullName: z.string().min(1, { message: "Full name is required." }),
@@ -42,7 +59,7 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 interface StoredProfileData {
-  fullName?: string;
+  fullName?: string; // Keep this for consistency if other data is also in localStorage
   dateOfBirth?: string; // Store as ISO string
   mobileNumber?: string;
 }
@@ -66,33 +83,23 @@ export default function CompleteProfilePage() {
 
   useEffect(() => {
     if (user) {
-      // Pre-fill from Firebase Auth
       setValue('fullName', user.displayName || '');
+      setPreview(user.photoURL || null); // Initialize preview with Firebase Auth photoURL
 
-      // Try to load other data from localStorage
+      // Load other data from localStorage (excluding profile picture)
       const storedDataString = localStorage.getItem(`profileData_${user.uid}`);
       if (storedDataString) {
         try {
           const storedData: StoredProfileData = JSON.parse(storedDataString);
-          if (storedData.fullName && !user.displayName) setValue('fullName', storedData.fullName); // Prefer auth name if available
+          if (storedData.fullName && !user.displayName) setValue('fullName', storedData.fullName);
           if (storedData.dateOfBirth) setValue('dateOfBirth', new Date(storedData.dateOfBirth));
           if (storedData.mobileNumber) setValue('mobileNumber', storedData.mobileNumber);
         } catch (e) {
           console.error("Failed to parse stored profile data:", e);
         }
       }
-      
-      // Load profile picture from localStorage
-      const storedImage = localStorage.getItem(`profilePicture_${user.uid}`);
-      if (storedImage) {
-        setPreview(storedImage);
-      } else if (user.photoURL) { 
-        // Fallback to auth photoURL if no local image, but local takes precedence for this page's preview
-        setPreview(user.photoURL);
-      }
     }
   }, [user, setValue]);
-
 
   useEffect(() => {
     if (profilePictureFiles && profilePictureFiles.length > 0) {
@@ -100,20 +107,17 @@ export default function CompleteProfilePage() {
       if (ACCEPTED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_FILE_SIZE) {
         const reader = new FileReader();
         reader.onloadend = () => {
-          setPreview(reader.result as string);
+          setPreview(reader.result as string); // Show local preview of new image
         };
         reader.readAsDataURL(file);
       } else {
-        // Revert to original if invalid file chosen
-        const storedImage = user ? localStorage.getItem(`profilePicture_${user.uid}`) : null;
-        setPreview(storedImage || user?.photoURL || null);
+        setPreview(user?.photoURL || null); // Revert to auth URL if file invalid
       }
-    } else if (profilePictureFiles && profilePictureFiles.length === 0 && preview !== user?.photoURL) {
-       // File input was cleared by user, and current preview isn't the auth.photoURL (meaning it was a local preview)
-       // Set preview to null to indicate removal intention for localStorage, or fallback to auth.photoURL if it exists
-       setPreview(user?.photoURL || null);
+    } else if (profilePictureFiles && profilePictureFiles.length === 0) {
+      // File input was cleared by user
+      setPreview(user?.photoURL || null); // Show existing auth photoURL or nothing
     }
-  }, [profilePictureFiles, user, preview]);
+  }, [profilePictureFiles, user]);
 
 
   useEffect(() => {
@@ -130,52 +134,66 @@ export default function CompleteProfilePage() {
       return;
     }
 
+    if (!APPWRITE_BUCKET_ID || !APPWRITE_PROJECT_ID || !APPWRITE_ENDPOINT) {
+        toast({ title: "Configuration Error", description: "Appwrite is not configured correctly. Cannot upload image.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
+
+    let newPhotoURL = user.photoURL; // Start with existing photoURL
+
     try {
-      // Update Firebase Auth displayName
-      await updateProfile(auth.currentUser, {
-        displayName: data.fullName,
-        // photoURL is NOT updated from localStorage image
-      });
-      toast({ title: "Display Name Updated!", description: "Your name in Firebase Auth is updated.", variant: "default" });
-      
-      // Handle profile picture with localStorage
+      // Handle profile picture upload to Appwrite
       if (profilePictureFiles && profilePictureFiles.length > 0) {
         const file = profilePictureFiles[0];
-        // Ensure preview has the Data URL from FileReader
-        if (preview && preview.startsWith('data:image')) {
-          localStorage.setItem(`profilePicture_${user.uid}`, preview);
-          toast({ title: "Profile Picture Saved Locally", description: "Your new profile picture is saved in browser storage.", variant: "default"});
+        try {
+          toast({ title: "Uploading Image...", description: "Please wait while your image is uploaded to Appwrite.", variant: "default" });
+          const appwriteFile = await appwriteStorage.createFile(
+            APPWRITE_BUCKET_ID,
+            ID.unique(), // Generates a unique ID for the file
+            file
+          );
+          
+          // Construct the Appwrite file URL
+          // Format: <YOUR_APPWRITE_ENDPOINT>/storage/buckets/<BUCKET_ID>/files/<FILE_ID>/view?project=<PROJECT_ID>
+          newPhotoURL = `${APPWRITE_ENDPOINT}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${appwriteFile.$id}/view?project=${APPWRITE_PROJECT_ID}`;
+          console.log("Image uploaded to Appwrite. File ID:", appwriteFile.$id, "URL:", newPhotoURL);
+          toast({ title: "Image Uploaded!", description: "Profile picture successfully uploaded to Appwrite.", variant: "default"});
+        } catch (uploadError: any) {
+          console.error("Appwrite upload error:", uploadError);
+          toast({ title: "Upload Failed", description: `Could not upload image to Appwrite: ${uploadError.message || 'Unknown error'}`, variant: "destructive" });
+          setIsSubmitting(false);
+          return; // Stop if upload fails
         }
-      } else if (preview === null || (user.photoURL && preview === user.photoURL && (!profilePictureFiles || profilePictureFiles.length === 0) ) ) {
-        // User cleared the input (preview is null), or it's showing auth.photoURL and they didn't select a new file
-        // This means they intend to remove the locally stored picture
-        const localPicExisted = localStorage.getItem(`profilePicture_${user.uid}`);
-        if (localPicExisted){
-            localStorage.removeItem(`profilePicture_${user.uid}`);
-            toast({ title: "Local Profile Picture Removed", description: "Your locally stored profile picture has been removed.", variant: "default"});
-        }
+      } else if (profilePictureFiles && profilePictureFiles.length === 0 && user.photoURL && !preview) {
+        // User cleared the file input, and there was a photoURL, and preview is now null (intention to remove)
+        // For Appwrite, we'd ideally delete the old file here, but that needs the fileId.
+        // For simplicity, we'll just set photoURL to null in Firebase Auth.
+        // TODO: Implement deletion from Appwrite if `oldFileId` is tracked.
+        newPhotoURL = null;
+        toast({ title: "Profile Picture Removed", description: "Your profile picture will be removed from your Firebase profile.", variant: "default"});
       }
 
-      // Save other profile data to localStorage
+      // Update Firebase Auth profile (displayName and newPhotoURL from Appwrite)
+      await updateProfile(auth.currentUser, {
+        displayName: data.fullName,
+        photoURL: newPhotoURL,
+      });
+      
+      console.log("Firebase Auth profile updated. Name:", data.fullName, "PhotoURL:", newPhotoURL);
+
+      // Save other profile data (DOB, mobile) to localStorage as before
       const profileDataToStore: StoredProfileData = {
-        fullName: data.fullName,
+        // fullName is now directly in Firebase Auth displayName, no need to store separately unless for fallback
         dateOfBirth: data.dateOfBirth ? data.dateOfBirth.toISOString() : undefined,
         mobileNumber: data.mobileNumber,
       };
       localStorage.setItem(`profileData_${user.uid}`, JSON.stringify(profileDataToStore));
-      
-      console.log("Firebase Auth profile updated with displayName:", data.fullName);
-      console.log("Profile data saved to localStorage for user " + user.uid + ":", profileDataToStore);
-      if (preview && preview.startsWith('data:image')) {
-        console.log("Profile picture Data URL (first 50 chars) saved to localStorage: ", preview.substring(0,50));
-      }
-
-
-      await new Promise(resolve => setTimeout(resolve, 300)); 
+      console.log("Other profile data saved to localStorage:", profileDataToStore);
 
       toast({
-        title: "Profile Information Updated!",
-        description: "Your details have been successfully updated (name in Firebase, other data locally).",
+        title: "Profile Updated!",
+        description: "Your Firebase profile has been updated. Other details saved locally.",
       });
       router.push('/');
     } catch (error: any) {
@@ -208,7 +226,7 @@ export default function CompleteProfilePage() {
           <UserCheck className="mx-auto h-12 w-12 text-primary mb-3" />
           <CardTitle className="font-headline text-3xl">Complete Your Profile</CardTitle>
           <CardDescription>
-            Help us get to know you better by providing a few more details.
+            Help us get to know you better by providing a few more details. Profile picture uses Appwrite.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -239,7 +257,7 @@ export default function CompleteProfilePage() {
             </div>
 
             <div>
-              <Label htmlFor="profilePicture">Profile Picture (Optional, max 5MB, stored locally)</Label>
+              <Label htmlFor="profilePicture">Profile Picture (Optional, max 5MB, uses Appwrite Storage)</Label>
               <Input
                 id="profilePicture"
                 type="file"
@@ -251,13 +269,22 @@ export default function CompleteProfilePage() {
               {errors.profilePicture && <p className="text-sm text-destructive mt-1">{errors.profilePicture.message as string}</p>}
               {preview && (
                 <div className="mt-4">
-                  <Image src={preview} alt="Profile preview" width={100} height={100} className="rounded-full object-cover border shadow-sm" />
+                  <Image 
+                    src={preview} 
+                    alt="Profile preview" 
+                    width={100} 
+                    height={100} 
+                    className="rounded-full object-cover border shadow-sm" 
+                    // Add key to force re-render if src changes but is same URL (cache issue)
+                    // This is more relevant if preview source changes between local FileReader and Appwrite URL
+                    key={preview} 
+                  />
                 </div>
               )}
             </div>
 
             <div>
-              <Label htmlFor="mobileNumber">Mobile Number (Optional)</Label>
+              <Label htmlFor="mobileNumber">Mobile Number (Optional, stored locally)</Label>
               <Input id="mobileNumber" {...register("mobileNumber")} placeholder="e.g., +11234567890" aria-invalid={errors.mobileNumber ? "true" : "false"} />
               {errors.mobileNumber && <p className="text-sm text-destructive mt-1">{errors.mobileNumber.message}</p>}
             </div>
@@ -267,9 +294,17 @@ export default function CompleteProfilePage() {
               Save and Continue
             </Button>
           </form>
+           <div className="mt-4 text-xs text-muted-foreground">
+              <p><strong>Important:</strong> Ensure your Appwrite environment variables (Endpoint, Project ID, Bucket ID) are set correctly in <code>.env.local</code> and that your Appwrite bucket has appropriate permissions for uploads and public reads.</p>
+              <p>Example required <code>.env.local</code> variables:</p>
+              <ul className="list-disc list-inside pl-4">
+                <li><code>NEXT_PUBLIC_APPWRITE_ENDPOINT=...</code></li>
+                <li><code>NEXT_PUBLIC_APPWRITE_PROJECT_ID=...</code></li>
+                <li><code>NEXT_PUBLIC_APPWRITE_BUCKET_ID=...</code></li>
+              </ul>
+            </div>
         </CardContent>
       </Card>
     </div>
   );
 }
-
