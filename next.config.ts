@@ -26,6 +26,12 @@ const remotePatternsConfig = [
     port: '',
     pathname: '/**',
   },
+  {
+    protocol: 'https',
+    hostname: 'lh3.googleusercontent.com', // Added for Google profile pictures
+    port: '',
+    pathname: '/**',
+  },
 ];
 
 if (appwriteHostname) {
