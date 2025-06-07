@@ -1,3 +1,4 @@
+
 // src/lib/firebase/auth.ts
 import {
   GoogleAuthProvider,
@@ -12,6 +13,7 @@ import {
   updateEmail as firebaseUpdateEmail,
   updatePassword as firebaseUpdatePassword,
   sendEmailVerification,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail, // Import new function
   type UserCredential,
   type AuthError,
   type User as FirebaseUser,
@@ -50,7 +52,7 @@ export const signUpWithEmailPasswordAndSendVerification = async (email: string, 
     if (userCredential.user) {
       const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
       
-      if (!siteURL || siteURL.includes("your-site-url") || siteURL === "http://localhost:9000" || siteURL === "http://localhost:3000") {
+      if (!siteURL || siteURL.includes("your-site-url") || siteURL === "http://localhost:9000" || siteURL === "http://localhost:3000" || siteURL === "PLACEHOLDER_SITE_URL_NOT_SET_IN_ENV") {
         const errorMsg = `CRITICAL_CONFIG_ERROR (Firebase Auth): NEXT_PUBLIC_SITE_URL is not set correctly or is a placeholder/default local dev URL ("${siteURL}"). Email verification link will be incorrect for production. Please set this in your Vercel (or other hosting) environment variables to your production URL (e.g., https://prompt-forge-blond.vercel.app). For local development, ensure it points to your actual local dev server URL if not the default.`;
         console.error(errorMsg);
       }
@@ -91,17 +93,6 @@ export const onAuthStateChanged = (callback: (user: User) => void): (() => void)
   return firebaseOnAuthStateChanged(auth, callback);
 };
 
-// This function is not directly used for reauth in updateUserEmail/Password anymore as credential creation is handled there.
-// It's kept for potential other uses or if a direct reauth flow is needed elsewhere.
-export const reauthenticateUser = async (currentPassword_REMOVEME?: string): Promise<void> => {
-  const user = auth.currentUser;
-  if (!user || !currentPassword_REMOVEME) { 
-    throw new Error("User not found or current password not provided for re-authentication.");
-  }
-  const credential = EmailAuthProvider.credential(user.email!, currentPassword_REMOVEME);
-  await reauthenticateWithCredential(user, credential);
-};
-
 export const updateUserEmail = async (currentPasswordForReauth: string, newEmail: string): Promise<void> => {
   const user = auth.currentUser;
   if (!user || !user.email) {
@@ -117,10 +108,9 @@ export const updateUserEmail = async (currentPasswordForReauth: string, newEmail
     await reauthenticateWithCredential(user, credential);
     await firebaseUpdateEmail(user, newEmail);
     
-    // Send verification to the new email
     const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
     const actionCodeSettings: ActionCodeSettings = {
-      url: siteURL ? `${siteURL}/update-profile` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/update-profile'), // Redirect to update-profile or home after new email verification
+      url: siteURL ? `${siteURL}/update-profile` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/update-profile'),
       handleCodeInApp: true,
     };
     await sendEmailVerification(user, actionCodeSettings); 
@@ -148,6 +138,28 @@ export const updateUserPassword = async (currentPasswordForReauth: string, newPa
   }
 };
 
+export const sendPasswordResetEmail = async (email: string): Promise<void> => {
+  const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
+  const actionCodeSettings: ActionCodeSettings = {
+    url: siteURL ? `${siteURL}/login` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/login'), // Redirect to login page after reset
+    handleCodeInApp: true,
+  };
+  try {
+    await firebaseSendPasswordResetEmail(auth, email, actionCodeSettings);
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    // Don't reveal if user exists or not for security reasons
+    // Throw a generic error or handle specific errors if needed (e.g. invalid email format by Firebase)
+    if ((error as AuthError).code === 'auth/invalid-email') {
+        throw error; // rethrow if it's an invalid email format error
+    }
+    // For other errors like auth/user-not-found, we typically don't want to inform the user
+    // as it can be a security risk. The calling function will handle showing a generic message.
+    // However, if you want to propagate the error for specific handling:
+    // throw error; 
+  }
+};
+
 
 export const getFirebaseAuthErrorMessage = (error: any): string => {
   if (typeof error === 'object' && error !== null && 'code' in error) {
@@ -164,7 +176,9 @@ export const getFirebaseAuthErrorMessage = (error: any): string => {
       case 'auth/user-disabled':
         return 'This user account has been disabled.';
       case 'auth/user-not-found':
-        return 'No user found with this email.';
+        // For login/sensitive ops, avoid confirming user non-existence directly.
+        // For password reset, Firebase handles this by not sending if user not found.
+        return 'No user found with this email, or the password was incorrect.';
       case 'auth/wrong-password':
         return 'Incorrect password. Please try again.';
       case 'auth/invalid-credential':

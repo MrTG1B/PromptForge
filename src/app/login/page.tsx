@@ -119,8 +119,8 @@ export default function LoginPage() {
 
   const handleAuthSuccess = () => { 
     toast({ title: "Success!", description: "Logged in successfully." });
-    router.push('/');
-    router.refresh();
+    router.push('/'); // Redirect to home or complete-profile if needed
+    router.refresh(); // Refresh server components
   };
 
   const handleAuthError = (authError: any) => {
@@ -147,7 +147,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signUpWithEmailPasswordAndSendVerification(data.email, data.password);
-      // User is now redirected to a dedicated verification page
+      // User is now redirected to a dedicated verification page by router.push
       router.push('/auth/verify-email'); 
     } catch (authError) {
       handleAuthError(authError);
@@ -214,8 +214,15 @@ export default function LoginPage() {
                   {loginErrors.email && <p className="text-sm text-destructive mt-1">{loginErrors.email.message}</p>}
                 </div>
                 <div>
-                  <Label htmlFor="login-password">Password</Label>
-                  <div className="relative">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="login-password">Password</Label>
+                    <Link href="/auth/forgot-password" legacyBehavior>
+                      <a className="text-sm font-medium text-primary hover:underline">
+                        Forgot password?
+                      </a>
+                    </Link>
+                  </div>
+                  <div className="relative mt-1">
                     <Input 
                       id="login-password" 
                       type={showLoginPassword ? "text" : "password"} 
