@@ -30,31 +30,37 @@ export default function HomePage() {
         </div>
       ) : (
         // New container for logged-out landing page
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 overflow-x-hidden"> {/* Added overflow-x-hidden for horizontal animations */}
           <div className="flex flex-col items-center justify-center text-center">
-            <Wand2 className="h-20 w-20 md:h-28 md:w-28 text-primary mb-6" />
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold font-headline text-foreground mb-6">
-              Welcome to PromptForge
-            </h1>
-            <p className="max-w-2xl text-lg sm:text-xl text-muted-foreground mb-10">
-              The intelligent workspace to craft, refine, and perfect your AI prompts.
-              Unlock advanced AI capabilities and streamline your creative process with our intuitive tools.
-            </p>
-            <Button
-              onClick={handleGetStarted}
-              size="lg"
-              className="px-10 py-7 text-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-transform transform hover:scale-105"
-            >
-              Get Started Now
-              <ArrowRight className="ml-3 h-6 w-6" />
-            </Button>
+            {/* Hero Section */}
+            <div className="animate-in fade-in-0 slide-in-from-top-8 duration-700">
+              <Wand2 className="h-20 w-20 md:h-28 md:w-28 text-primary mb-6" />
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold font-headline text-foreground mb-6">
+                Welcome to PromptForge
+              </h1>
+              <p className="max-w-2xl text-lg sm:text-xl text-muted-foreground mb-10">
+                The intelligent workspace to craft, refine, and perfect your AI prompts.
+                Unlock advanced AI capabilities and streamline your creative process with our intuitive tools.
+              </p>
+              <Button
+                onClick={handleGetStarted}
+                size="lg"
+                className="px-10 py-7 text-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-transform transform hover:scale-105"
+              >
+                Get Started Now
+                <ArrowRight className="ml-3 h-6 w-6" />
+              </Button>
+            </div>
 
             {/* Feature Highlights Section */}
-            <div className="mt-20 w-full max-w-5xl">
+            <div 
+              className="mt-24 w-full max-w-5xl animate-in fade-in-0 slide-in-from-bottom-12 duration-500 delay-200" 
+              data-animate-on-scroll
+            >
               <h2 className="text-3xl font-semibold font-headline text-foreground mb-12">Why Choose PromptForge?</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {/* Feature Card 1 */}
-                <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col text-center">
+                <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-300" data-animate-on-scroll>
                   <CardHeader className="items-center">
                     <div className="bg-primary/10 p-4 rounded-full mb-4 inline-block">
                       <Zap className="h-8 w-8 text-primary" />
@@ -68,7 +74,7 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
                 {/* Feature Card 2 */}
-                <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col text-center">
+                <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-400" data-animate-on-scroll>
                   <CardHeader className="items-center">
                      <div className="bg-primary/10 p-4 rounded-full mb-4 inline-block">
                         <Settings2 className="h-8 w-8 text-primary" />
@@ -82,7 +88,7 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
                 {/* Feature Card 3 */}
-                <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col text-center">
+                <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-500" data-animate-on-scroll>
                   <CardHeader className="items-center">
                     <div className="bg-primary/10 p-4 rounded-full mb-4 inline-block">
                         <LayoutGrid className="h-8 w-8 text-primary" />
@@ -99,7 +105,10 @@ export default function HomePage() {
             </div>
 
             {/* Placeholder Image section */}
-            <div className="mt-20 w-full max-w-3xl">
+            <div 
+              className="mt-24 w-full max-w-3xl animate-in fade-in-0 zoom-in-90 duration-500 delay-300" 
+              data-animate-on-scroll
+            >
                 <h3 className="text-2xl font-semibold font-headline text-foreground mb-8">See It In Action</h3>
                 <div className="bg-card p-2 rounded-lg shadow-xl border border-border">
                      <Image
@@ -115,7 +124,10 @@ export default function HomePage() {
             </div>
 
             {/* Call to Action Section */}
-            <div className="mt-20 mb-10 py-16 bg-muted/30 rounded-lg w-full max-w-4xl px-6">
+            <div 
+              className="mt-24 mb-10 py-16 bg-muted/30 rounded-lg w-full max-w-4xl px-6 animate-in fade-in-0 slide-in-from-bottom-12 duration-700 delay-300" 
+              data-animate-on-scroll
+            >
                 <h2 className="text-3xl font-semibold font-headline text-foreground mb-5">Ready to Forge Perfect Prompts?</h2>
                 <p className="text-muted-foreground mb-10 max-w-xl mx-auto text-lg">
                     Join PromptForge today and elevate your AI interactions. Sign up is quick, easy, and free to get started!
