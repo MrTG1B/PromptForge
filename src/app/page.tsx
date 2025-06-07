@@ -47,7 +47,7 @@ export default function HomePage() {
                 size="lg"
                 className="px-10 py-7 text-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-transform transform hover:scale-105"
               >
-                Get Started Now
+                Start Forging Now
                 <ArrowRight className="ml-3 h-6 w-6" />
               </Button>
             </div>

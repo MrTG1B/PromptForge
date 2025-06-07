@@ -5,10 +5,18 @@ import Link from 'next/link';
 import Image from 'next/image'; 
 import UserProfile from '@/components/auth/UserProfile';
 import { useAuth } from '@/hooks/useAuth';
-// LoginButton is no longer used here
+import { Button } from '@/components/ui/button';
+import { ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
 
 const Header: React.FC = () => {
   const { user, loading } = useAuth();
+  const router = useRouter();
+
+  const handleNavigateToLogin = () => {
+    router.push('/login');
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -23,9 +31,17 @@ const Header: React.FC = () => {
           />
         </Link>
         <div className="flex items-center space-x-4">
-          {/* Only show UserProfile if user is logged in and not loading */}
           {!loading && user && <UserProfile />}
-          {/* LoginButton is removed for logged-out state */}
+          {!loading && !user && (
+            <Button 
+              onClick={handleNavigateToLogin} 
+              variant="default"
+              size="sm"
+            >
+              Get Started for Free
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     </header>
