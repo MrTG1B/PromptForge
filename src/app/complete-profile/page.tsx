@@ -429,7 +429,7 @@ export default function CompleteProfilePage() {
                 accept={ACCEPTED_IMAGE_TYPES.join(',')}
                 {...register("profilePicture")} 
                 onChange={onSelectFile} 
-                className="mt-1 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/90"
+                className="mt-1 bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/90"
               />
               {errors.profilePicture && <p className="text-sm text-destructive mt-1">{errors.profilePicture.message as string}</p>}
               
