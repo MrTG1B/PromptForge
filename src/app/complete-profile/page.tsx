@@ -523,7 +523,7 @@ export default function CompleteProfilePage() {
                   <PhoneNumberInput
                     value={field.value}
                     onChange={field.onChange}
-                    defaultCountry="US" 
+                    defaultCountry="IN" 
                   />
                 )}
               />

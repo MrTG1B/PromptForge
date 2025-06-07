@@ -16,6 +16,7 @@ interface Country {
   flag: string; // Emoji flag
 }
 
+// Ensure all countries have flag emojis
 const countries: Country[] = [
   { name: 'India', code: 'IN', dialCode: '+91', flag: '🇮🇳' },
   { name: 'United States', code: 'US', dialCode: '+1', flag: '🇺🇸' },
@@ -71,7 +72,7 @@ const countries: Country[] = [
   { name: 'Denmark', code: 'DK', dialCode: '+45', flag: '🇩🇰' },
   { name: 'Djibouti', code: 'DJ', dialCode: '+253', flag: '🇩🇯' },
   { name: 'Dominica', code: 'DM', dialCode: '+1767', flag: '🇩🇲' },
-  { name: 'Dominican Republic', code: 'DO', dialCode: '+1', flag: '🇩🇴' },
+  { name: 'Dominican Republic', code: 'DO', dialCode: '+1', flag: '🇩🇴' }, // Note: DR shares +1, ensure unique handling if needed
   { name: 'Ecuador', code: 'EC', dialCode: '+593', flag: '🇪🇨' },
   { name: 'Egypt', code: 'EG', dialCode: '+20', flag: '🇪🇬' },
   { name: 'El Salvador', code: 'SV', dialCode: '+503', flag: '🇸🇻' },
@@ -105,7 +106,7 @@ const countries: Country[] = [
   { name: 'Italy', code: 'IT', dialCode: '+39', flag: '🇮🇹' },
   { name: 'Jamaica', code: 'JM', dialCode: '+1876', flag: '🇯🇲' },
   { name: 'Jordan', code: 'JO', dialCode: '+962', flag: '🇯🇴' },
-  { name: 'Kazakhstan', code: 'KZ', dialCode: '+7', flag: '🇰🇿' },
+  { name: 'Kazakhstan', code: 'KZ', dialCode: '+7', flag: '🇰🇿' }, // Note: +7 shared with Russia
   { name: 'Kenya', code: 'KE', dialCode: '+254', flag: '🇰🇪' },
   { name: 'Kiribati', code: 'KI', dialCode: '+686', flag: '🇰🇮' },
   { name: 'Kuwait', code: 'KW', dialCode: '+965', flag: '🇰🇼' },
@@ -158,7 +159,7 @@ const countries: Country[] = [
   { name: 'Philippines', code: 'PH', dialCode: '+63', flag: '🇵🇭' },
   { name: 'Poland', code: 'PL', dialCode: '+48', flag: '🇵🇱' },
   { name: 'Portugal', code: 'PT', dialCode: '+351', flag: '🇵🇹' },
-  { name: 'Puerto Rico', code: 'PR', dialCode: '+1', flag: '🇵🇷' },
+  { name: 'Puerto Rico', code: 'PR', dialCode: '+1', flag: '🇵🇷' }, // Note: PR shares +1
   { name: 'Qatar', code: 'QA', dialCode: '+974', flag: '🇶🇦' },
   { name: 'Romania', code: 'RO', dialCode: '+40', flag: '🇷🇴' },
   { name: 'Russia', code: 'RU', dialCode: '+7', flag: '🇷🇺' },
@@ -208,78 +209,71 @@ const countries: Country[] = [
   { name: 'Yemen', code: 'YE', dialCode: '+967', flag: '🇾🇪' },
   { name: 'Zambia', code: 'ZM', dialCode: '+260', flag: '🇿🇲' },
   { name: 'Zimbabwe', code: 'ZW', dialCode: '+263', flag: '🇿🇼' },
-  // Add more countries as needed
 ];
 
 
 interface PhoneNumberInputProps {
-  value?: string; // Expected format: "+11234567890"
+  value?: string; // Expected format: "+11234567890" or "1234567890" if country is already selected
   onChange?: (value: string) => void;
-  defaultCountry?: string; // ISO code, e.g., "US"
+  defaultCountry?: string; // ISO code, e.g., "IN"
   disabled?: boolean;
 }
 
 export default function PhoneNumberInput({
   value = '',
   onChange,
-  defaultCountry = 'US',
+  defaultCountry = 'IN', // Default to India
   disabled = false,
 }: PhoneNumberInputProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
-  
-  const initialCountry = useMemo(() => {
-    if (value) {
-      const found = countries.find(c => value.startsWith(c.dialCode));
-      if (found) return found;
+
+  const initialSelectedCountry = useMemo(() => {
+    if (value && value.startsWith('+')) {
+      // Try to find country by dial code if value is a full E.164 number
+      const countryWithMatchingDialCode = countries.find(c => value.startsWith(c.dialCode));
+      if (countryWithMatchingDialCode) return countryWithMatchingDialCode;
     }
+    // Fallback to defaultCountry prop or the first country in the list
     return countries.find(c => c.code === defaultCountry) || countries[0];
   }, [value, defaultCountry]);
 
-  const [selectedCountry, setSelectedCountry] = useState<Country>(initialCountry);
-  
-  const initialNumberInput = useMemo(() => {
+  const [selectedCountry, setSelectedCountry] = useState<Country>(initialSelectedCountry);
+
+  const initialNumberPart = useMemo(() => {
     if (value && selectedCountry && value.startsWith(selectedCountry.dialCode)) {
       return value.substring(selectedCountry.dialCode.length).replace(/\D/g, '');
-    } else if (value) {
-        const foundCountryForValue = countries.find(c => value.startsWith(c.dialCode));
-        if(foundCountryForValue) {
-            return value.substring(foundCountryForValue.dialCode.length).replace(/\D/g, '');
-        }
-      return value.replace(/\D/g, ''); // Fallback if no dial code match initially
+    } else if (value && !value.startsWith('+')) {
+      // If value is just digits, assume it's the national number part for the current selectedCountry
+      return value.replace(/\D/g, '');
     }
     return '';
   }, [value, selectedCountry]);
 
-  const [numberInput, setNumberInput] = useState<string>(initialNumberInput);
+  const [numberInput, setNumberInput] = useState<string>(initialNumberPart);
 
+  // Effect to update selectedCountry and numberInput if 'value' or 'defaultCountry' prop changes
   useEffect(() => {
-    // This effect primarily handles external changes to 'value' prop
-    // or ensures consistency if defaultCountry logic needs to re-evaluate selectedCountry
-    let newSelectedCountry = selectedCountry;
-    let newNumberInput = numberInput;
+    let newSelectedCountry = countries.find(c => c.code === defaultCountry) || countries[0];
+    let newNumberPart = '';
 
     if (value && value.trim() !== '') {
-      const foundCountry = countries.find(c => value.startsWith(c.dialCode));
-      if (foundCountry) {
-        newSelectedCountry = foundCountry;
-        newNumberInput = value.substring(foundCountry.dialCode.length).replace(/\D/g, '');
+      if (value.startsWith('+')) {
+        const foundCountry = countries.find(c => value.startsWith(c.dialCode));
+        if (foundCountry) {
+          newSelectedCountry = foundCountry;
+          newNumberPart = value.substring(foundCountry.dialCode.length).replace(/\D/g, '');
+        } else {
+          // If starts with + but no matching dial code, keep default country and treat value as national number
+          newNumberPart = value.replace(/\D/g, ''); // Or potentially strip '+' if it's not part of a valid dial code
+        }
       } else {
-        // Value doesn't start with known dial code, assume it's only number part
-        // Keep current selectedCountry (which should be initialized to default)
-        newNumberInput = value.replace(/\D/g, '');
+        // If value doesn't start with '+', assume it's a national number for the default country
+        newNumberPart = value.replace(/\D/g, '');
       }
-    } else {
-      // Value is empty/undefined, ensure default country is set and number is empty
-      newSelectedCountry = countries.find(c => c.code === defaultCountry) || countries[0];
-      newNumberInput = '';
     }
-
-    if (selectedCountry.code !== newSelectedCountry.code) {
-      setSelectedCountry(newSelectedCountry);
-    }
-    if (numberInput !== newNumberInput) {
-      setNumberInput(newNumberInput);
-    }
+    
+    setSelectedCountry(newSelectedCountry);
+    setNumberInput(newNumberPart);
   }, [value, defaultCountry]);
 
 
@@ -289,25 +283,29 @@ export default function PhoneNumberInput({
       setSelectedCountry(country);
       setPopoverOpen(false);
       if (onChange) {
+        // When country changes, construct new full number with current numberInput
         onChange(country.dialCode + numberInput.replace(/\D/g, ''));
       }
     }
   };
 
   const handleNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newNumber = e.target.value.replace(/\D/g, '');
-    setNumberInput(newNumber);
+    const newNationalNumber = e.target.value.replace(/\D/g, '');
+    setNumberInput(newNationalNumber);
     if (onChange && selectedCountry) {
-      onChange(selectedCountry.dialCode + newNumber);
+      onChange(selectedCountry.dialCode + newNationalNumber);
     }
   };
-
-  const calculatePadding = (country: Country | undefined): string => {
-    if (!country) return '0.75em';
-    const flagWidthEm = 1.5; // Approx em width for flag emoji + one space
-    const dialCodeWidthEm = country.dialCode.length * 0.6 + 0.5; // Approx em for dial code chars + space
-    return `${flagWidthEm + dialCodeWidthEm}em`;
+  
+  const calculateInputPaddingLeft = (country: Country | undefined): string => {
+    if (!country) return '0.75rem'; // Default padding
+    const flagWidth = 1.7; // Approximate em width for flag emoji + space
+    const dialCodeString = `${country.dialCode}`; // Ensure it's a string
+    const dialCodeWidth = dialCodeString.length * 0.6 + 0.5; // Approx em for dial code chars + space
+    const extraSpace = 0.5; // A bit more space
+    return `${flagWidth + dialCodeWidth + extraSpace}rem`;
   };
+
 
   return (
     <div className="flex items-stretch w-full">
@@ -318,7 +316,7 @@ export default function PhoneNumberInput({
             role="combobox"
             aria-expanded={popoverOpen}
             className={cn(
-              "w-[150px] justify-between rounded-r-none border-r-input pl-2 pr-1", // Adjusted padding
+              "w-[130px] justify-between rounded-r-none border-r-input pl-3 pr-2",
               "focus:ring-ring focus:ring-2 focus:ring-offset-0 focus:z-10"
             )}
             disabled={disabled}
@@ -339,7 +337,7 @@ export default function PhoneNumberInput({
                 {countries.map((country) => (
                   <CommandItem
                     key={country.code}
-                    value={`${country.flag} ${country.name} ${country.dialCode}`} // Searchable value
+                    value={`${country.flag} ${country.name} ${country.dialCode}`}
                     onSelect={() => handleCountrySelect(country.code)}
                     className="flex items-center justify-between w-full cursor-pointer text-sm py-2 px-3"
                   >
@@ -367,9 +365,9 @@ export default function PhoneNumberInput({
         {selectedCountry && (
             <span 
                 key={selectedCountry.dialCode} // Key to help re-render
-                className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none z-10 flex items-center gap-1"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none z-10 flex items-center gap-1.5"
             >
-              <span>{selectedCountry.flag}</span>
+              <span className="text-base">{selectedCountry.flag}</span>
               <span>{selectedCountry.dialCode}</span>
             </span>
           )}
@@ -381,7 +379,7 @@ export default function PhoneNumberInput({
           className={cn(
             "rounded-l-none flex-1 w-full focus:z-10"
             )} 
-          style={{ paddingLeft: calculatePadding(selectedCountry) }}
+          style={{ paddingLeft: calculateInputPaddingLeft(selectedCountry) }}
           disabled={disabled || !selectedCountry}
           aria-label="Phone number"
         />
@@ -389,4 +387,3 @@ export default function PhoneNumberInput({
     </div>
   );
 }
-
