@@ -5,6 +5,7 @@ import Script from 'next/script'; // Import next/script
 import './globals.css';
 import { Analytics } from "@vercel/analytics/next";
 import GlobalProviders from '@/components/providers/GlobalProviders';
+import { ThemeProvider } from 'next-themes'; // Added ThemeProvider
 
 const siteUrl = 'https://prompt-forge-blond.vercel.app';
 const facebookAppId = '1663861460968287'; // This is used for FB.init
@@ -72,7 +73,7 @@ export default function RootLayout({
   const keyToPassToProvider = recaptchaSiteKeyFromEnv || "PLACEHOLDER_SITE_KEY_FROM_LAYOUT";
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning> {/* Added suppressHydrationWarning for next-themes */}
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -107,9 +108,16 @@ export default function RootLayout({
           strategy="lazyOnload"
           id="facebook-jssdk"
         />
-        <GlobalProviders recaptchaSiteKey={keyToPassToProvider}>
-          {children}
-        </GlobalProviders>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <GlobalProviders recaptchaSiteKey={keyToPassToProvider}>
+            {children}
+          </GlobalProviders>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

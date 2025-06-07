@@ -1,3 +1,4 @@
+
 // src/components/layout/Header.tsx
 "use client";
 
@@ -8,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { ThemeToggleButton } from '@/components/theme/ThemeToggleButton';
 
 
 const Header: React.FC = () => {
@@ -30,7 +32,8 @@ const Header: React.FC = () => {
             priority 
           />
         </Link>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 sm:space-x-4"> {/* Adjusted space for toggle */}
+          <ThemeToggleButton />
           {!loading && user && <UserProfile />}
           {!loading && !user && (
             <Button 

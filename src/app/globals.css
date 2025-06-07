@@ -5,16 +5,16 @@
 
 @layer base {
   :root {
-    --background: 0 0% 88%; /* User: #E0E0E0 Light Grey */
-    --foreground: 0 0% 12%; /* User: #1E1E1E Dark Grey */
+    --background: 0 0% 88%; /* Light Grey #E0E0E0 */
+    --foreground: 0 0% 12%; /* Dark Grey #1E1E1E */
 
-    --card: 0 0% 100%; /* User: #FFFFFF White */
-    --card-foreground: 0 0% 12%; /* User: #1E1E1E Dark Grey */
+    --card: 0 0% 100%; /* White #FFFFFF */
+    --card-foreground: 0 0% 12%; /* Dark Grey #1E1E1E */
 
-    --popover: 0 0% 100%; /* User: #FFFFFF White */
-    --popover-foreground: 0 0% 12%; /* User: #1E1E1E Dark Grey */
+    --popover: 0 0% 100%; /* White #FFFFFF */
+    --popover-foreground: 0 0% 12%; /* Dark Grey #1E1E1E */
 
-    --primary: 270 100% 25%; /* PRD: Deep Indigo #4B0082 */
+    --primary: 270 100% 25%; /* Deep Indigo #4B0082 */
     --primary-foreground: 0 0% 100%; /* White for contrast on Indigo */
 
     --secondary: 0 0% 94%; /* #F0F0F0 Light grey, distinct from background */
@@ -23,7 +23,7 @@
     --muted: 0 0% 92%; /* #EAEAEA */
     --muted-foreground: 0 0% 40%; /* #666666 Mid-tone grey */
 
-    --accent: 51 100% 50%; /* PRD: Golden Yellow #FFD700 */
+    --accent: 51 100% 50%; /* Golden Yellow #FFD700 */
     --accent-foreground: 0 0% 12%; /* Dark Grey for contrast on Yellow */
 
     --destructive: 0 84.2% 60.2%; /* Default ShadCN red */
@@ -45,7 +45,7 @@
     --sidebar-border: 0 0% 80%; /* #CCCCCC */
     --sidebar-ring: 270 100% 25%;
 
-    /* Chart colors - Light Theme (can remain as they are or be adjusted if needed) */
+    /* Chart colors - Light Theme */
     --chart-1: 350 80% 60%; /* Strong pink/red */
     --chart-2: 180 60% 45%; /* Cool cyan/teal */
     --chart-3: 280 70% 50%; /* Purple */
@@ -54,14 +54,14 @@
   }
 
   .dark {
-    --background: 0 0% 12%; /* User: #1E1E1E Dark Grey */
-    --foreground: 0 0% 88%; /* User: #E0E0E0 Light Grey */
+    --background: 0 0% 12%; /* Dark Grey #1E1E1E */
+    --foreground: 0 0% 88%; /* Light Grey #E0E0E0 */
 
     --card: 0 0% 16%; /* #292929 Slightly lighter than background */
-    --card-foreground: 0 0% 88%; /* User: #E0E0E0 Light Grey */
+    --card-foreground: 0 0% 88%; /* Light Grey #E0E0E0 */
 
     --popover: 0 0% 16%; /* #292929 */
-    --popover-foreground: 0 0% 88%; /* User: #E0E0E0 Light Grey */
+    --popover-foreground: 0 0% 88%; /* Light Grey #E0E0E0 */
 
     --primary: 270 100% 60%; /* Brighter Indigo for dark mode */
     --primary-foreground: 0 0% 100%; /* White text for contrast */
@@ -92,7 +92,7 @@
     --sidebar-border: 0 0% 18%; /* #2E2E2E */
     --sidebar-ring: 270 100% 60%;
 
-    /* Chart colors - Dark Theme (can remain as they are or be adjusted) */
+    /* Chart colors - Dark Theme */
     --chart-1: 350 85% 70%; /* Brighter pink/red */
     --chart-2: 180 65% 55%; /* Brighter cyan/teal */
     --chart-3: 280 75% 60%; /* Brighter purple */
