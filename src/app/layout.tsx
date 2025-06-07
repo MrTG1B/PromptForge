@@ -1,57 +1,71 @@
 
 // src/app/layout.tsx
 import type { Metadata } from 'next';
-import Script from 'next/script'; // Import next/script
+import Script from 'next/script';
 import './globals.css';
 import { Analytics } from "@vercel/analytics/next";
 import GlobalProviders from '@/components/providers/GlobalProviders';
 import { ThemeProvider } from 'next-themes';
 
-// Use environment variable for site URL
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://prompt-forge-blond.vercel.app'; // Fallback if not set
 const facebookAppId = '1663861460968287';
 const recaptchaSiteKeyFromEnv = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 
-// Construct OG image URL using siteUrl
-const ogImageUrl = `${siteUrl}/promptforge-og.png`;
+// --- Critical for Social Sharing ---
+// 1. NEXT_PUBLIC_SITE_URL: This environment variable MUST be set to your production URL in Vercel/hosting.
+//    e.g., NEXT_PUBLIC_SITE_URL=https://your-promptforge-app.com
+// 2. Image File: Ensure 'promptforge-og.png' exists in your 'public' folder.
+//    Recommended dimensions: 1200x630px. Keep file size reasonable (e.g., < 500KB).
+
+let resolvedSiteUrl: URL;
+const defaultSiteUrlString = 'https://prompt-forge-blond.vercel.app'; // Default fallback
+
+try {
+  const siteUrlString = process.env.NEXT_PUBLIC_SITE_URL || defaultSiteUrlString;
+  resolvedSiteUrl = new URL(siteUrlString);
+} catch (e) {
+  console.error(
+    `CRITICAL_METADATA_ERROR: Invalid NEXT_PUBLIC_SITE_URL ('${process.env.NEXT_PUBLIC_SITE_URL}') or fallback. ` +
+    `Using default: ${defaultSiteUrlString}. Error: ${(e as Error).message}`
+  );
+  resolvedSiteUrl = new URL(defaultSiteUrlString);
+}
+
+const ogImageFileName = 'promptforge-og.png'; // Your OG image in the /public folder
 
 if (!process.env.NEXT_PUBLIC_SITE_URL) {
   console.warn(
     "WARNING: NEXT_PUBLIC_SITE_URL environment variable is not set. " +
-    "Email verification links and metadata URLs might not work correctly. " +
-    "Please set it in your .env.local file for development and in your Vercel project settings for deployment."
+    "Metadata URLs and other features might not work correctly. " +
+    "Please set it in your .env.local file for development and in your Vercel project settings for deployment to your production URL."
   );
 }
 
 if (!recaptchaSiteKeyFromEnv || recaptchaSiteKeyFromEnv === "your_actual_recaptcha_site_key_here") {
   console.error(
-    "SERVER-SIDE CRITICAL WARNING: NEXT_PUBLIC_RECAPTCHA_SITE_KEY is not configured or is still the placeholder value 'your_actual_recaptcha_site_key_here'. " +
-    "reCAPTCHA will NOT function. " +
-    "1. For local development: Ensure this key is set in your .env.local file (e.g., NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_real_site_key) AND RESTART your dev server. " +
-    "2. For Vercel/deployment: Ensure this environment variable is set in your Vercel project's settings and a new deployment is triggered. " +
-    "The current value read from environment is: '" + recaptchaSiteKeyFromEnv + "'"
+    "SERVER-SIDE CRITICAL WARNING: NEXT_PUBLIC_RECAPTCHA_SITE_KEY is not configured or is still the placeholder. " +
+    "reCAPTCHA will NOT function. Check .env.local or Vercel deployment settings. " +
+    "Current value: '" + recaptchaSiteKeyFromEnv + "'"
   );
 }
 
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl), // Use siteUrl from env
-  title: 'PromptForge',
-  description: 'AI-powered prompt generation and refinement tool.',
+  metadataBase: resolvedSiteUrl,
+  title: 'PromptForge | AI Prompt Engineering Assistant',
+  description: 'PromptForge: Your AI-powered workspace to craft, refine, and perfect prompts for any generative AI. Get better results, faster.',
   icons: {
-    icon: '/promptforge-og.png',
+    icon: `/${ogImageFileName}`, // Assumes image is in /public
   },
   openGraph: {
-    title: 'PromptForge',
-    description: 'AI-powered prompt generation and refinement tool.',
-    url: siteUrl,
+    title: 'PromptForge: AI Prompt Engineering Assistant',
+    description: 'Craft, refine, and perfect your AI prompts with PromptForge. Unlock the full potential of generative AI tools.',
+    url: resolvedSiteUrl.toString(),
     siteName: 'PromptForge',
     images: [
       {
-        url: ogImageUrl, // Use constructed ogImageUrl
+        url: new URL(`/${ogImageFileName}`, resolvedSiteUrl).toString(), // Ensures absolute URL
         width: 1200,
         height: 630,
-        alt: 'PromptForge Social Sharing Image',
+        alt: 'PromptForge - AI Prompt Engineering Tool',
       },
     ],
     locale: 'en_US',
@@ -59,14 +73,17 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'PromptForge',
-    description: 'AI-powered prompt generation and refinement tool.',
+    title: 'PromptForge: AI Prompt Engineering Assistant',
+    description: 'Craft, refine, and perfect your AI prompts with PromptForge. Unlock the full potential of generative AI tools.',
     images: [
       {
-        url: ogImageUrl, // Use constructed ogImageUrl
-        alt: 'PromptForge Twitter Image',
+        url: new URL(`/${ogImageFileName}`, resolvedSiteUrl).toString(), // Ensures absolute URL
+        alt: 'PromptForge Twitter Card Image',
       }
     ],
+    // Optional: Add site or creator handle if you have one
+    // site: '@YourTwitterHandle',
+    // creator: '@YourTwitterHandle',
   },
   other: {
     'fb:app_id': facebookAppId,
