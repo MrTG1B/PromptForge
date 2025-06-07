@@ -30,7 +30,7 @@ try {
   resolvedSiteUrl = new URL(defaultSiteUrlString);
 }
 
-const ogImageFileName = 'image/promptforge-og.png'; // Your OG image in the /public folder
+const ogImageFileName = 'images/promptforge-og.png'; // Your OG image in the /public folder
 
 if (!process.env.NEXT_PUBLIC_SITE_URL) {
   console.warn(
