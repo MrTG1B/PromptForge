@@ -1,3 +1,4 @@
+
 // src/components/auth/UserProfile.tsx
 "use client";
 
@@ -14,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, UserCircle2, ShieldCheck, FileText, Lightbulb, Info } from 'lucide-react'; // Added Lightbulb, Info
+import { LogOut, UserCircle2, ShieldCheck, FileText, Lightbulb, Info } from 'lucide-react';
 
 const UserProfile: React.FC = () => {
   const { user } = useAuth();
@@ -48,13 +49,17 @@ const UserProfile: React.FC = () => {
     return null; // Fallback for unexpected name format
   };
 
+  const initials = getInitials(user.displayName);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-9 w-9">
             <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
-            <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+            <AvatarFallback>
+              {initials || <UserCircle2 className="h-5 w-5" />}
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -83,6 +88,12 @@ const UserProfile: React.FC = () => {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href="/complete-profile">
+            <UserCircle2 className="mr-2 h-4 w-4" />
+            Update Profile
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild className="cursor-pointer">
           <Link href="/privacy-policy">
             <ShieldCheck className="mr-2 h-4 w-4" />
