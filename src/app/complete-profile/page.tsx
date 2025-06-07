@@ -26,7 +26,7 @@ import 'react-image-crop/dist/ReactCrop.css';
 
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png"];
 
 const APPWRITE_BUCKET_ID = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID;
 const APPWRITE_PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
@@ -97,7 +97,7 @@ const monthOptions = [
   { value: "11", label: "November" }, { value: "12", label: "December" }
 ];
 
-// Helper function to generate a cropped image blob
+// Helper function to generate a cropped image file
 async function getCroppedImageFile(
   image: HTMLImageElement,
   crop: PixelCrop,
@@ -242,7 +242,7 @@ export default function CompleteProfilePage() {
         return;
       }
       if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-        toast({ title: "Invalid file type", description: `Only .jpg, .jpeg, .png, and .webp formats are supported.`, variant: "destructive" });
+        toast({ title: "Invalid file type", description: `Only JPG and PNG formats are supported.`, variant: "destructive" });
         setValue('profilePicture', undefined); // Clear RHF value
         return;
       }
@@ -280,7 +280,6 @@ export default function CompleteProfilePage() {
       height
     );
     setCrop(initialCrop);
-    // setCompletedCrop(initialCrop); // Set initial completed crop to show full image initially if needed for preview
   }
 
 
@@ -307,7 +306,7 @@ export default function CompleteProfilePage() {
     let newPhotoURL = user.photoURL; // Default to current photo
 
     try {
-      if (croppedImageFile) { // Prioritize cropped image
+      if (croppedImageFile) { 
         try {
           toast({ title: "Uploading Cropped Image...", description: "Please wait while your image is uploaded to Appwrite.", variant: "default" });
           
@@ -315,7 +314,7 @@ export default function CompleteProfilePage() {
           const appwriteFile = await appwriteStorage.createFile(
             APPWRITE_BUCKET_ID,
             ID.unique(),
-            croppedImageFile // Use the cropped file
+            croppedImageFile 
           );
           
           newPhotoURL = `${APPWRITE_ENDPOINT}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${appwriteFile.$id}/view?project=${APPWRITE_PROJECT_ID}`;
@@ -327,13 +326,6 @@ export default function CompleteProfilePage() {
           setIsSubmitting(false);
           return;
         }
-      } else if (!imgSrc && user.photoURL && !preview) {
-        // This case implies the user might have cleared the selection and wants to remove the photo.
-        // For this version, we are not implementing a direct "remove" by clearing.
-        // If croppedImageFile is null, it means no new image was selected/cropped.
-        // So, newPhotoURL will remain user.photoURL unless explicitly changed by a "remove" button (not implemented here).
-        // The current logic means if no new image is cropped, the old one (if any) is kept.
-        // To remove image, newPhotoURL would be set to null. This logic is now omitted to simplify.
       }
 
 
@@ -385,7 +377,7 @@ export default function CompleteProfilePage() {
           <UserCheck className="mx-auto h-12 w-12 text-primary mb-3" />
           <CardTitle className="font-headline text-3xl">Complete Your Profile</CardTitle>
           <CardDescription>
-            Help us get to know you better. Upload and crop your profile picture (Appwrite Storage).
+            Help us get to know you better. Upload and crop your profile picture.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -440,8 +432,8 @@ export default function CompleteProfilePage() {
                 id="profilePictureInput"
                 type="file"
                 accept={ACCEPTED_IMAGE_TYPES.join(',')}
-                {...register("profilePicture")} // Still register for RHF validation messages
-                onChange={onSelectFile} // Use custom handler
+                {...register("profilePicture")} 
+                onChange={onSelectFile} 
                 className="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border file:border-input file:bg-background file:text-sm file:font-medium file:text-foreground hover:file:bg-accent hover:file:text-accent-foreground"
               />
               {errors.profilePicture && <p className="text-sm text-destructive mt-1">{errors.profilePicture.message as string}</p>}
@@ -474,7 +466,7 @@ export default function CompleteProfilePage() {
                 <div className="mt-4">
                   <p className="text-sm font-medium mb-1">Preview:</p>
                   <Image
-                    src={preview} // Shows user.photoURL or cropped preview data URL
+                    src={preview} 
                     alt="Profile preview"
                     width={100}
                     height={100}
@@ -502,3 +494,7 @@ export default function CompleteProfilePage() {
     </div>
   );
 }
+
+        
+        
+      
