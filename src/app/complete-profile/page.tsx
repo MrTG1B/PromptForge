@@ -29,6 +29,7 @@ import { updateUserEmail, updateUserPassword, getFirebaseAuthErrorMessage } from
 
 import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import Link from 'next/link';
 
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -452,9 +453,7 @@ export default function CompleteProfilePage() {
       await updateUserEmail(data.currentPasswordForEmail, data.newEmail);
       toast({ title: "Email Update Initiated", description: "A verification email has been sent to your new address. Please verify to complete the change.", duration: 7000 });
       resetEmailForm();
-      // Optionally, refresh user data or UI here, or sign out to force re-login with new email.
-      // For simplicity, we'll let Firebase handle the email change and user will see it on next login or refresh.
-      auth.currentUser?.reload(); // Attempt to reload user data
+      auth.currentUser?.reload(); 
     } catch (error: any) {
       toast({ title: "Email Change Failed", description: getFirebaseAuthErrorMessage(error), variant: "destructive" });
     } finally {
@@ -512,7 +511,7 @@ export default function CompleteProfilePage() {
               <MailWarning className="h-4 w-4" />
               <AlertTitle>Email Verification Required</AlertTitle>
               <AlertDescription>
-                A verification email was sent to <strong>{user.email}</strong>. Please click the link in the email to verify your account before saving changes.
+                A verification email was sent to <strong>{user.email || 'your email address'}</strong>. Please click the link in the email to verify your account before saving changes.
                 If you haven&apos;t received it, check your spam folder.
               </AlertDescription>
             </Alert>
@@ -626,11 +625,11 @@ export default function CompleteProfilePage() {
                       </div>
                       {emailErrors.currentPasswordForEmail && <p className="text-sm text-destructive mt-1">{emailErrors.currentPasswordForEmail.message}</p>}
                     </div>
-                    <Button type="submit" className="w-full" disabled={isChangingEmail || !user?.emailVerified}>
+                    <Button type="submit" className="w-full" disabled={isChangingEmail || (user && !user.emailVerified)}>
                       {isChangingEmail ? <Loader2 className="animate-spin mr-2" /> : <Mail className="mr-2 h-4 w-4" />}
                       Save New Email
                     </Button>
-                    {!user?.emailVerified && <p className="text-xs text-destructive text-center mt-1">Verify your current email to change it.</p>}
+                    {user && !user.emailVerified && <p className="text-xs text-destructive text-center mt-1">Verify your current email to change it.</p>}
                   </form>
                 </AccordionContent>
               </AccordionItem>
@@ -680,11 +679,11 @@ export default function CompleteProfilePage() {
                       </div>
                       {passwordErrors.confirmNewPassword && <p className="text-sm text-destructive mt-1">{passwordErrors.confirmNewPassword.message}</p>}
                     </div>
-                     <Button type="submit" className="w-full" disabled={isChangingPassword || !user?.emailVerified}>
+                     <Button type="submit" className="w-full" disabled={isChangingPassword || (user && !user.emailVerified)}>
                        {isChangingPassword ? <Loader2 className="animate-spin mr-2" /> : <KeyRound className="mr-2 h-4 w-4" />}
                       Change Password
                     </Button>
-                     {!user?.emailVerified && <p className="text-xs text-destructive text-center mt-1">Verify your email to change password.</p>}
+                     {user && !user.emailVerified && <p className="text-xs text-destructive text-center mt-1">Verify your email to change password.</p>}
                   </form>
                 </AccordionContent>
               </AccordionItem>

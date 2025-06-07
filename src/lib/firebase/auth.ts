@@ -50,11 +50,15 @@ export const signUpWithEmailPasswordAndSendVerification = async (email: string, 
     
     if (userCredential.user) {
       const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
-      if (!siteURL) {
-        console.error("ERROR: NEXT_PUBLIC_SITE_URL is not set. Cannot send verification email with continue URL.");
-        // Decide if you want to throw an error here or proceed without the continue URL
-        // For now, we'll proceed, but the redirect after verification might not work as intended.
+      
+      if (!siteURL || siteURL.includes("your-site-url") || siteURL === "http://localhost:9000" || siteURL === "http://localhost:3000") {
+        const errorMsg = `CRITICAL_CONFIG_ERROR (Firebase Auth): NEXT_PUBLIC_SITE_URL is not set correctly or is a placeholder/default local dev URL ("${siteURL}"). Email verification link will be incorrect for production. Please set this in your Vercel (or other hosting) environment variables to your production URL (e.g., https://prompt-forge-blond.vercel.app). For local development, ensure it points to your actual local dev server URL if not the default.`;
+        console.error(errorMsg);
+        // For production, we might want to throw an error or at least alert the user more directly
+        // that verification emails might not work. For now, a strong console error.
+        // throw new Error(errorMsg); // Uncomment to make it a hard failure if needed
       }
+
       const actionCodeSettings: ActionCodeSettings = {
         url: siteURL ? `${siteURL}/complete-profile` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/complete-profile'),
         handleCodeInApp: true,
@@ -120,14 +124,12 @@ export const updateUserEmail = async (currentPasswordForReauth: string, newEmail
   try {
     await reauthenticateWithCredential(user, credential);
     await firebaseUpdateEmail(user, newEmail);
-    // Firebase will usually send its own verification email to the new address.
-    // You can also trigger your custom verification flow here if needed.
     const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
       const actionCodeSettings: ActionCodeSettings = {
         url: siteURL ? `${siteURL}/complete-profile` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/complete-profile'),
         handleCodeInApp: true,
       };
-    await sendEmailVerification(user, actionCodeSettings); // Send verification to new email
+    await sendEmailVerification(user, actionCodeSettings); 
   } catch (error) {
     console.error("Error updating email:", error);
     throw error;
@@ -181,7 +183,7 @@ export const getFirebaseAuthErrorMessage = (error: any): string => {
         return 'This operation is sensitive and requires recent authentication. Please log out and log back in, then try again.';
       case 'auth/too-many-requests':
         return 'We have detected too many requests from your device. Please try again later.';
-      case 'auth/email-not-verified': // Though Firebase usually handles this before allowing sensitive operations
+      case 'auth/email-not-verified': 
         return 'Your email address is not verified. Please check your email for a verification link.';
       default:
         return `An unexpected error occurred: ${authError.message} (Code: ${authError.code})`;

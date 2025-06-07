@@ -102,7 +102,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (activeTab === "signup" && watchedSignUpPassword !== undefined) {
-      setSignUpPasswordValue(watchedSignUpPassword); // Keep this for direct use if needed
+      setSignUpPasswordValue(watchedSignUpPassword); 
       const criteriaMet: PasswordCriteria = {
         minLength: watchedSignUpPassword.length >= 8,
         uppercase: /[A-Z]/.test(watchedSignUpPassword),
@@ -117,7 +117,7 @@ export default function LoginPage() {
   }, [watchedSignUpPassword, activeTab]);
 
 
-  const handleAuthSuccess = () => { // Simplified: always goes to home after successful login/OAuth
+  const handleAuthSuccess = () => { 
     toast({ title: "Success!", description: "Logged in successfully." });
     router.push('/');
     router.refresh();
@@ -150,13 +150,12 @@ export default function LoginPage() {
       toast({
         title: "Account Created & Verification Email Sent!",
         description: "Please check your email (including spam folder) and click the verification link. You can then log in to complete your profile.",
-        duration: 10000, // Longer duration for this important message
+        duration: 15000, // Longer duration for this important message
         variant: "default",
       });
-      // Consider signing out the user to force email verification flow strictly
-      // await signOut(); 
-      router.push('/'); // Redirect to home page. User can log in after verification.
-      router.refresh();
+      // User is NOT redirected here. They should verify their email and then log in.
+      // router.push('/'); // Removed this line
+      // router.refresh(); // No need to refresh if not navigating
     } catch (authError) {
       handleAuthError(authError);
     } finally {
@@ -268,7 +267,6 @@ export default function LoginPage() {
                       aria-invalid={signUpErrors.password ? "true" : "false"}
                       className="pr-10"
                       onFocus={() => setShowPasswordCriteria(true)}
-                      // onBlur={() => setShowPasswordCriteria(false)} // Optionally hide on blur
                     />
                      <Button 
                       type="button" 
