@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserCheck, ArrowRight, Crop } from 'lucide-react';
+import { Loader2, ArrowRight, Crop, Camera } from 'lucide-react'; // Removed UserCheck, Added Camera
 import { auth } from '@/lib/firebase/config';
 import { updateProfile } from 'firebase/auth';
 import { storage as appwriteStorage } from '@/lib/appwrite/config';
@@ -56,7 +56,7 @@ const profileSchema = z.object({
     const yearNum = parseInt(val, 10);
     return /^\d{4}$/.test(val) && yearNum >= 1900 && yearNum <= currentYear;
   }, { message: `Year must be 1900-${currentYear}.` }),
-  profilePicture: z 
+  profilePicture: z // This field is mainly for initial validation if needed, actual upload uses croppedImageFile
     .instanceof(FileList)
     .optional(),
   mobileNumber: z.string().regex(/^\+?[1-9]\d{1,14}$/, { message: "Invalid mobile number format (e.g., +1234567890 or 1234567890)."}).optional().or(z.literal('')),
@@ -75,7 +75,7 @@ const profileSchema = z.object({
   return true;
 }, {
   message: "Please enter a complete and valid date of birth, or leave all date fields empty.",
-  path: ["dobDay"],
+  path: ["dobDay"], // Assign error to one of the dob fields for display
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -99,7 +99,7 @@ const monthOptions = [
 
 async function getCroppedImageFile(
   image: HTMLImageElement,
-  crop: PixelCrop, // crop is in screen pixels of the scaled image
+  crop: PixelCrop,
   originalFileName: string
 ): Promise<File | null> {
   const canvas = document.createElement('canvas');
@@ -113,6 +113,7 @@ async function getCroppedImageFile(
   const scaleX = image.naturalWidth / image.width;
   const scaleY = image.naturalHeight / image.height;
 
+  // crop.x, crop.y, crop.width, crop.height are in screen pixels of the scaled image
   const sourceX = crop.x * scaleX;
   const sourceY = crop.y * scaleY;
   const sourceWidth = crop.width * scaleX;
@@ -128,10 +129,10 @@ async function getCroppedImageFile(
     sourceY,
     sourceWidth,
     sourceHeight,
-    0, 
-    0, 
-    canvas.width, 
-    canvas.height 
+    0,
+    0,
+    canvas.width,
+    canvas.height
   );
 
   return new Promise((resolve, reject) => {
@@ -145,8 +146,8 @@ async function getCroppedImageFile(
         const fileType = ACCEPTED_IMAGE_TYPES.find(type => originalFileName.toLowerCase().endsWith(type.split('/')[1])) || 'image/png';
         resolve(new File([blob], originalFileName, { type: fileType }));
       },
-      'image/png', 
-      0.95 
+      'image/png',
+      0.95
     );
   });
 }
@@ -158,12 +159,13 @@ export default function CompleteProfilePage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [imgSrc, setImgSrc] = useState<string | null>(null);
+  const [imgSrc, setImgSrc] = useState<string | null>(null); // For ReactCrop input
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
-  const [croppedImageFile, setCroppedImageFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null); 
+  const [croppedImageFile, setCroppedImageFile] = useState<File | null>(null); // The final file to upload
+  const [preview, setPreview] = useState<string | null>(null); // Data URL for the circular preview
   const [originalFileName, setOriginalFileName] = useState<string>('profile.png');
 
 
@@ -182,7 +184,7 @@ export default function CompleteProfilePage() {
     if (user) {
       setValue('fullName', user.displayName || '');
       if (user.photoURL) {
-        setPreview(user.photoURL); 
+        setPreview(user.photoURL); // Initialize preview with existing photo
       }
 
       const storedDataString = localStorage.getItem(`profileData_${user.uid}`);
@@ -204,10 +206,10 @@ export default function CompleteProfilePage() {
 
   useEffect(() => {
     if (!completedCrop || !imgRef.current || !imgSrc) {
-      if (!imgSrc && user?.photoURL) { // If imgSrc is cleared (no new file), reset to existing photoURL
-         setPreview(user.photoURL);
-      } else if (!imgSrc) { // If no new file and no existing photoURL
-         setPreview(null);
+      // If imgSrc is cleared (no new file selected for cropping),
+      // revert preview to user's existing photoURL or null if none.
+      if (!imgSrc) {
+         setPreview(user?.photoURL || null);
       }
       return;
     }
@@ -220,22 +222,22 @@ export default function CompleteProfilePage() {
           setCroppedImageFile(croppedFile);
           const reader = new FileReader();
           reader.onloadend = () => {
-            setPreview(reader.result as string);
+            setPreview(reader.result as string); // Update circular preview
           };
           reader.readAsDataURL(croppedFile);
         } else {
-           setPreview(null); // If cropping fails, clear preview
+           setPreview(user?.photoURL || null); // If cropping fails, revert
         }
       } catch (e) {
         console.error('Error cropping image:', e);
         toast({ title: "Cropping Error", description: "Could not crop image.", variant: "destructive" });
-        setPreview(null);
+        setPreview(user?.photoURL || null); // Revert on error
       }
     };
 
     generateCroppedPreview();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completedCrop, originalFileName, imgSrc]); // Added imgSrc as dependency
+  }, [completedCrop, originalFileName, imgSrc, user?.photoURL]);
 
 
   useEffect(() => {
@@ -249,48 +251,50 @@ export default function CompleteProfilePage() {
       const file = e.target.files[0];
       if (file.size > MAX_FILE_SIZE) {
         toast({ title: "File too large", description: `Max image size is ${MAX_FILE_SIZE / 1024 / 1024}MB.`, variant: "destructive" });
-        setValue('profilePicture', undefined); 
-        setImgSrc(null); // Clear imgSrc if file is invalid
+        if (fileInputRef.current) fileInputRef.current.value = ""; // Clear file input
+        setImgSrc(null);
         setCroppedImageFile(null);
         setCompletedCrop(null);
+        setPreview(user?.photoURL || null); // Revert preview
         return;
       }
       if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
         toast({ title: "Invalid file type", description: `Only JPG and PNG formats are supported.`, variant: "destructive" });
-        setValue('profilePicture', undefined); 
-        setImgSrc(null); // Clear imgSrc if file is invalid
+        if (fileInputRef.current) fileInputRef.current.value = ""; // Clear file input
+        setImgSrc(null);
         setCroppedImageFile(null);
         setCompletedCrop(null);
+        setPreview(user?.photoURL || null); // Revert preview
         return;
       }
       
       clearErrors("profilePicture"); 
       setOriginalFileName(file.name);
       setCrop(undefined); 
-      setCompletedCrop(null);
+      setCompletedCrop(null); // Important to reset to trigger onComplete for initial crop
       setCroppedImageFile(null);
-      setPreview(null); // Clear previous preview
+      setPreview(null); // Clear previous main preview, cropper will show image
       const reader = new FileReader();
       reader.addEventListener('load', () => setImgSrc(reader.result?.toString() || ''));
       reader.readAsDataURL(file);
-    } else { // If file input is cleared by user
+    } else { // If file input is cleared by user (e.g. pressing escape in file dialog)
       setImgSrc(null);
       setCroppedImageFile(null);
       setCompletedCrop(null);
-      // setPreview(user?.photoURL || null); // Reset to user's existing photo or null (handled in useEffect for completedCrop)
+      setPreview(user?.photoURL || null); // Revert to user's existing photo or null
     }
   };
 
   function onImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
+    imgRef.current = e.currentTarget;
     const { width, height } = e.currentTarget;
-    imgRef.current = e.currentTarget; // Ensure imgRef is set here
     const initialCrop = centerCrop(
       makeAspectCrop(
         {
           unit: '%',
-          width: 90,
+          width: 90, // Start with a 90% width crop
         },
-        1, 
+        1, // Aspect ratio 1:1
         width,
         height
       ),
@@ -298,7 +302,8 @@ export default function CompleteProfilePage() {
       height
     );
     setCrop(initialCrop);
-    setCompletedCrop(null); // Reset completedCrop on new image load to ensure onComplete fires for initial auto-crop
+    // Setting completedCrop here can sometimes pre-empt the user's first interaction
+    // It's often better to let onComplete handle the first completedCrop
   }
 
 
@@ -345,6 +350,10 @@ export default function CompleteProfilePage() {
           setIsSubmitting(false);
           return;
         }
+      } else if (imgSrc && !croppedImageFile) {
+        // User selected an image but didn't crop or crop failed. Don't change photoURL unless explicitly told to remove.
+        // For now, we just don't upload. A "remove photo" feature would handle clearing.
+        console.log("Image was selected but not cropped, or cropping failed. No new image uploaded.");
       }
 
 
@@ -380,6 +389,10 @@ export default function CompleteProfilePage() {
       setIsSubmitting(false);
     }
   };
+  
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
 
   if (authLoading || !user) {
     return (
@@ -393,14 +406,70 @@ export default function CompleteProfilePage() {
     <div className="flex items-start justify-center min-h-[calc(100vh-theme(spacing.16))] py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-lg shadow-xl">
         <CardHeader className="text-center">
-          <UserCheck className="mx-auto h-12 w-12 text-primary mb-3" />
+          {/* UserCheck icon removed */}
           <CardTitle className="font-headline text-3xl">Complete Your Profile</CardTitle>
           <CardDescription>
-            Help us get to know you better. Upload and crop your profile picture.
+            Personalize your experience by adding and cropping a profile photo.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            
+            <div className="flex justify-center mb-6">
+              <button
+                type="button"
+                onClick={triggerFileInput}
+                className="w-32 h-32 rounded-full border-2 border-dashed border-primary flex items-center justify-center cursor-pointer overflow-hidden relative bg-muted hover:bg-muted/80 transition-colors group"
+                aria-label="Upload profile picture"
+              >
+                {preview ? (
+                  <Image
+                    src={preview} 
+                    alt="Profile preview"
+                    fill
+                    className="object-cover"
+                    key={preview} // Force re-render on preview change
+                    unoptimized={preview.startsWith('blob:') || preview.startsWith('data:')}
+                  />
+                ) : (
+                  <Camera className="w-12 h-12 text-primary/70 group-hover:text-primary transition-colors" />
+                )}
+              </button>
+              <Input
+                id="profilePictureInput"
+                type="file"
+                accept={ACCEPTED_IMAGE_TYPES.join(',')}
+                className="hidden"
+                ref={fileInputRef}
+                onChange={onSelectFile}
+                // RHF register removed as we handle it manually
+              />
+            </div>
+            
+            {imgSrc && (
+              <div className="mt-0 p-2 border rounded-md bg-muted/30">
+                <p className="text-sm text-muted-foreground mb-2 flex items-center justify-center"><Crop className="w-4 h-4 mr-1" /> Crop your image:</p>
+                <ReactCrop
+                  crop={crop}
+                  onChange={c => setCrop(c)}
+                  onComplete={c => setCompletedCrop(c)}
+                  aspect={1} 
+                  circularCrop={true}
+                  minWidth={50}
+                  minHeight={50}
+                  ruleOfThirds // Optional: adds rule of thirds lines to the cropper
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    alt="Crop me"
+                    src={imgSrc}
+                    onLoad={onImageLoad}
+                    style={{ maxHeight: '300px', display: 'block', margin: 'auto' }} // Limit height and center
+                  />
+                </ReactCrop>
+              </div>
+            )}
+
             <div>
               <Label htmlFor="fullName">Full Name</Label>
               <Input id="fullName" {...register("fullName")} placeholder="e.g., Jane Doe" aria-invalid={errors.fullName ? "true" : "false"} />
@@ -439,66 +508,9 @@ export default function CompleteProfilePage() {
                 </div>
               </div>
               {errors.dobDay && <p className="text-sm text-destructive mt-1 col-span-3">{errors.dobDay.message}</p>}
-              {errors.dobMonth && <p className="text-sm text-destructive mt-1 col-span-3">{errors.dobMonth.message}</p>}
-              {errors.dobYear && <p className="text-sm text-destructive mt-1 col-span-3">{errors.dobYear.message}</p>}
-              {errors.root?.message && <p className="text-sm text-destructive mt-1 col-span-3">{errors.root.message}</p>}
-            </div>
-
-
-            <div>
-              <Label htmlFor="profilePictureInput">Profile Picture (Optional, max 5MB, JPG/PNG)</Label>
-              <Input
-                id="profilePictureInput"
-                type="file"
-                accept={ACCEPTED_IMAGE_TYPES.join(',')}
-                // {...register("profilePicture")} // We handle file selection manually now
-                onChange={onSelectFile} 
-                className="mt-1 bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/90"
-              />
-              {/* Direct errors for 'profilePicture' might not appear if validation is only for initial selection.
-                  Consider custom error display if needed based on onSelectFile logic. */}
-              
-              {imgSrc && (
-                <div className="mt-4 p-2 border rounded-md bg-muted/30">
-                  <p className="text-sm text-muted-foreground mb-2 flex items-center"><Crop className="w-4 h-4 mr-1" /> Crop your image (circular):</p>
-                  <ReactCrop
-                    crop={crop}
-                    onChange={c => setCrop(c)}
-                    onComplete={c => {
-                        // console.log("ReactCrop onComplete triggered with:", c); // Debug log
-                        setCompletedCrop(c);
-                    }}
-                    aspect={1} 
-                    circularCrop={true}
-                    minWidth={50}
-                    minHeight={50}
-                    ruleOfThirds
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      // ref={imgRef} // imgRef is now set in onImageLoad
-                      alt="Crop me"
-                      src={imgSrc}
-                      onLoad={onImageLoad}
-                      style={{ maxHeight: '400px', objectFit: 'contain' }}
-                    />
-                  </ReactCrop>
-                </div>
-              )}
-
-              {preview && (
-                <div className="mt-4">
-                  <p className="text-sm font-medium mb-1">Preview:</p>
-                  <Image
-                    src={preview} 
-                    alt="Profile preview"
-                    width={100}
-                    height={100}
-                    className="rounded-full object-cover border shadow-sm"
-                    key={preview} 
-                    unoptimized={preview.startsWith('blob:') || preview.startsWith('data:')}
-                  />
-                </div>
+              {/* Check if the root error for date validation exists */}
+              {errors.root?.message && !errors.dobDay && !errors.dobMonth && !errors.dobYear && (
+                <p className="text-sm text-destructive mt-1 col-span-3">{errors.root.message}</p>
               )}
             </div>
 
@@ -508,7 +520,7 @@ export default function CompleteProfilePage() {
               {errors.mobileNumber && <p className="text-sm text-destructive mt-1">{errors.mobileNumber.message}</p>}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting || (imgSrc && !completedCrop)}>
+            <Button type="submit" className="w-full" disabled={isSubmitting || (imgSrc && !completedCrop && !user?.photoURL) }>
               {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <ArrowRight className="mr-2 h-4 w-4" />}
               Save and Continue
             </Button>
@@ -525,3 +537,4 @@ export default function CompleteProfilePage() {
     
 
     
+
