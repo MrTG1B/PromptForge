@@ -46,7 +46,8 @@ if (!APPWRITE_ENDPOINT || APPWRITE_ENDPOINT === "YOUR_APPWRITE_ENDPOINT_NOT_SET"
 
 const currentYear = new Date().getFullYear();
 const profileSchema = z.object({
-  fullName: z.string().min(1, { message: "Full name is required." }),
+  firstName: z.string().min(1, { message: "First name is required." }),
+  lastName: z.string().optional(),
   dobDay: z.string().optional().refine(val => {
     if (!val) return true; 
     const dayNum = parseInt(val, 10);
@@ -80,7 +81,8 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 interface StoredProfileData {
-  fullName?: string;
+  firstName?: string;
+  lastName?: string;
   dobDay?: string;
   dobMonth?: string;
   dobYear?: string;
@@ -171,7 +173,8 @@ export default function CompleteProfilePage() {
   const { control, register, handleSubmit, formState: { errors }, setValue, watch } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      fullName: '',
+      firstName: '',
+      lastName: '',
       dobDay: '',
       dobMonth: '',
       dobYear: '',
@@ -179,11 +182,17 @@ export default function CompleteProfilePage() {
     }
   });
 
-  const mobileNumberValue = watch('mobileNumber'); // Watch mobile number for debugging or other purposes
+  const mobileNumberValue = watch('mobileNumber'); 
 
   useEffect(() => {
     if (user) {
-      setValue('fullName', user.displayName || '');
+      if (user.displayName) {
+        const nameParts = user.displayName.split(' ');
+        setValue('firstName', nameParts[0] || '');
+        if (nameParts.length > 1) {
+          setValue('lastName', nameParts.slice(1).join(' ') || '');
+        }
+      }
       if (user.photoURL) {
         setPreview(user.photoURL); 
       }
@@ -192,7 +201,8 @@ export default function CompleteProfilePage() {
       if (storedDataString) {
         try {
           const storedData: StoredProfileData = JSON.parse(storedDataString);
-          if (storedData.fullName && !user.displayName) setValue('fullName', storedData.fullName);
+          if (storedData.firstName && !user.displayName) setValue('firstName', storedData.firstName);
+          if (storedData.lastName && !user.displayName) setValue('lastName', storedData.lastName || '');
           if (storedData.dobDay) setValue('dobDay', storedData.dobDay);
           if (storedData.dobMonth) setValue('dobMonth', storedData.dobMonth);
           if (storedData.dobYear) setValue('dobYear', storedData.dobYear);
@@ -230,8 +240,6 @@ export default function CompleteProfilePage() {
       setOriginalFileName(file.name);
       setCrop(undefined); 
       setCompletedCrop(null);
-      // Do not reset croppedImageFile here, allow user to re-crop if they made a mistake.
-      // It will be overwritten if they save a new crop.
       const reader = new FileReader();
       reader.addEventListener('load', () => {
         setImgSrc(reader.result?.toString() || '');
@@ -245,7 +253,7 @@ export default function CompleteProfilePage() {
     imgRef.current = e.currentTarget;
     const { width, height } = e.currentTarget;
     const initialCrop = centerCrop(
-      makeAspectCrop({ unit: '%', width: 90 }, 1, width, height), // aspect ratio 1 for square/circle
+      makeAspectCrop({ unit: '%', width: 90 }, 1, width, height), 
       width,
       height
     );
@@ -278,12 +286,11 @@ export default function CompleteProfilePage() {
   };
 
   const handleCancelCrop = () => {
-    setImgSrc(null); // Clear the image source for cropper
+    setImgSrc(null); 
     setCrop(undefined);
     setCompletedCrop(null);
     setIsCropModalOpen(false);
-    if (fileInputRef.current) fileInputRef.current.value = ""; // Clear file input
-    // Do not reset croppedImageFile or preview here. User might have a previously saved crop they want to keep.
+    if (fileInputRef.current) fileInputRef.current.value = ""; 
   };
 
   const onSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
@@ -307,6 +314,7 @@ export default function CompleteProfilePage() {
     }
 
     let newPhotoURL = user.photoURL; 
+    const newDisplayName = `${data.firstName} ${data.lastName || ''}`.trim();
 
     try {
       if (croppedImageFile) { 
@@ -332,11 +340,11 @@ export default function CompleteProfilePage() {
       }
 
       await updateProfile(auth.currentUser, {
-        displayName: data.fullName,
+        displayName: newDisplayName,
         photoURL: newPhotoURL,
       });
       
-      console.log("Firebase Auth profile updated. Name:", data.fullName, "PhotoURL:", newPhotoURL);
+      console.log("Firebase Auth profile updated. Name:", newDisplayName, "PhotoURL:", newPhotoURL);
 
       const profileDataToStore: StoredProfileData = {
         dobDay: data.dobDay,
@@ -455,11 +463,17 @@ export default function CompleteProfilePage() {
               </DialogContent>
             </Dialog>
 
-
-            <div>
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input id="fullName" {...register("fullName")} placeholder="e.g., Jane Doe" aria-invalid={errors.fullName ? "true" : "false"} />
-              {errors.fullName && <p className="text-sm text-destructive mt-1">{errors.fullName.message}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="firstName">First Name</Label>
+                <Input id="firstName" {...register("firstName")} placeholder="e.g., Jane" aria-invalid={errors.firstName ? "true" : "false"} />
+                {errors.firstName && <p className="text-sm text-destructive mt-1">{errors.firstName.message}</p>}
+              </div>
+              <div>
+                <Label htmlFor="lastName">Last Name (Optional)</Label>
+                <Input id="lastName" {...register("lastName")} placeholder="e.g., Doe" aria-invalid={errors.lastName ? "true" : "false"} />
+                {errors.lastName && <p className="text-sm text-destructive mt-1">{errors.lastName.message}</p>}
+              </div>
             </div>
 
             <div>
@@ -509,7 +523,7 @@ export default function CompleteProfilePage() {
                   <PhoneNumberInput
                     value={field.value}
                     onChange={field.onChange}
-                    defaultCountry="US" // You can set a default country
+                    defaultCountry="US" 
                   />
                 )}
               />
