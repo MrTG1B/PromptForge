@@ -23,19 +23,22 @@ import { ID } from 'appwrite';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+// Read Appwrite config from environment variables
 const APPWRITE_BUCKET_ID = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID;
 const APPWRITE_PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
 const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
 
 
-if (!APPWRITE_BUCKET_ID) {
-  console.error("CRITICAL_CONFIG_ERROR: NEXT_PUBLIC_APPWRITE_BUCKET_ID is not set. Image uploads will fail.");
+// Enhanced initial console checks
+if (!APPWRITE_BUCKET_ID || APPWRITE_BUCKET_ID === "your-profile-pictures-bucket-id" || APPWRITE_BUCKET_ID.includes("your-bucket-id")) {
+  console.error(`CRITICAL_CONFIG_ERROR (CompleteProfilePage): NEXT_PUBLIC_APPWRITE_BUCKET_ID is not set correctly or is a placeholder. Current value: "${APPWRITE_BUCKET_ID}". Image uploads will fail.`);
 }
-if (!APPWRITE_PROJECT_ID) {
-  console.error("CRITICAL_CONFIG_ERROR: NEXT_PUBLIC_APPWRITE_PROJECT_ID is not set. Image URL construction might fail.");
+if (!APPWRITE_PROJECT_ID || APPWRITE_PROJECT_ID === "YOUR_APPWRITE_PROJECT_ID_NOT_SET" || APPWRITE_PROJECT_ID.includes("your-project-id")) {
+  console.error(`CRITICAL_CONFIG_ERROR (CompleteProfilePage): NEXT_PUBLIC_APPWRITE_PROJECT_ID is not set correctly or is a placeholder. Current value: "${APPWRITE_PROJECT_ID}". Image URL construction might fail.`);
 }
-if (!APPWRITE_ENDPOINT) {
-  console.error("CRITICAL_CONFIG_ERROR: NEXT_PUBLIC_APPWRITE_ENDPOINT is not set. Image URL construction might fail.");
+if (!APPWRITE_ENDPOINT || APPWRITE_ENDPOINT === "YOUR_APPWRITE_ENDPOINT_NOT_SET" || APPWRITE_ENDPOINT.includes("your-appwrite-instance.example.com")) {
+  console.error(`CRITICAL_CONFIG_ERROR (CompleteProfilePage): NEXT_PUBLIC_APPWRITE_ENDPOINT is not set correctly or is a placeholder. Current value: "${APPWRITE_ENDPOINT}". Image URL construction might fail.`);
 }
 
 
@@ -59,8 +62,8 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 interface StoredProfileData {
-  fullName?: string; // Keep this for consistency if other data is also in localStorage
-  dateOfBirth?: string; // Store as ISO string
+  fullName?: string; 
+  dateOfBirth?: string; 
   mobileNumber?: string;
 }
 
@@ -84,9 +87,8 @@ export default function CompleteProfilePage() {
   useEffect(() => {
     if (user) {
       setValue('fullName', user.displayName || '');
-      setPreview(user.photoURL || null); // Initialize preview with Firebase Auth photoURL
+      setPreview(user.photoURL || null); 
 
-      // Load other data from localStorage (excluding profile picture)
       const storedDataString = localStorage.getItem(`profileData_${user.uid}`);
       if (storedDataString) {
         try {
@@ -107,15 +109,14 @@ export default function CompleteProfilePage() {
       if (ACCEPTED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_FILE_SIZE) {
         const reader = new FileReader();
         reader.onloadend = () => {
-          setPreview(reader.result as string); // Show local preview of new image
+          setPreview(reader.result as string); 
         };
         reader.readAsDataURL(file);
       } else {
-        setPreview(user?.photoURL || null); // Revert to auth URL if file invalid
+        setPreview(user?.photoURL || null); 
       }
     } else if (profilePictureFiles && profilePictureFiles.length === 0) {
-      // File input was cleared by user
-      setPreview(user?.photoURL || null); // Show existing auth photoURL or nothing
+      setPreview(user?.photoURL || null); 
     }
   }, [profilePictureFiles, user]);
 
@@ -134,47 +135,48 @@ export default function CompleteProfilePage() {
       return;
     }
 
-    if (!APPWRITE_BUCKET_ID || !APPWRITE_PROJECT_ID || !APPWRITE_ENDPOINT) {
-        toast({ title: "Configuration Error", description: "Appwrite is not configured correctly. Cannot upload image.", variant: "destructive" });
+    console.log("Attempting Appwrite Upload. Config used:");
+    console.log("APPWRITE_ENDPOINT:", APPWRITE_ENDPOINT);
+    console.log("APPWRITE_PROJECT_ID:", APPWRITE_PROJECT_ID);
+    console.log("APPWRITE_BUCKET_ID:", APPWRITE_BUCKET_ID);
+
+
+    if (!APPWRITE_BUCKET_ID || !APPWRITE_PROJECT_ID || !APPWRITE_ENDPOINT || APPWRITE_BUCKET_ID.includes("your-") || APPWRITE_PROJECT_ID.includes("your-") || APPWRITE_ENDPOINT.includes("your-")) {
+        toast({ title: "Configuration Error", description: "Appwrite is not configured correctly in environment variables. Cannot upload image.", variant: "destructive" });
+        console.error("Appwrite onSubmit Configuration Error: One or more Appwrite ENV VARS are missing or placeholders.");
         setIsSubmitting(false);
         return;
     }
 
-    let newPhotoURL = user.photoURL; // Start with existing photoURL
+    let newPhotoURL = user.photoURL; 
 
     try {
-      // Handle profile picture upload to Appwrite
       if (profilePictureFiles && profilePictureFiles.length > 0) {
         const file = profilePictureFiles[0];
         try {
           toast({ title: "Uploading Image...", description: "Please wait while your image is uploaded to Appwrite.", variant: "default" });
+          
+          console.log(`Uploading to Appwrite Bucket: ${APPWRITE_BUCKET_ID} with File ID: unique`);
           const appwriteFile = await appwriteStorage.createFile(
             APPWRITE_BUCKET_ID,
-            ID.unique(), // Generates a unique ID for the file
+            ID.unique(), 
             file
           );
           
-          // Construct the Appwrite file URL
-          // Format: <YOUR_APPWRITE_ENDPOINT>/storage/buckets/<BUCKET_ID>/files/<FILE_ID>/view?project=<PROJECT_ID>
           newPhotoURL = `${APPWRITE_ENDPOINT}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${appwriteFile.$id}/view?project=${APPWRITE_PROJECT_ID}`;
-          console.log("Image uploaded to Appwrite. File ID:", appwriteFile.$id, "URL:", newPhotoURL);
+          console.log("Image uploaded to Appwrite. File ID:", appwriteFile.$id, "Constructed URL:", newPhotoURL);
           toast({ title: "Image Uploaded!", description: "Profile picture successfully uploaded to Appwrite.", variant: "default"});
         } catch (uploadError: any) {
           console.error("Appwrite upload error:", uploadError);
-          toast({ title: "Upload Failed", description: `Could not upload image to Appwrite: ${uploadError.message || 'Unknown error'}`, variant: "destructive" });
+          toast({ title: "Upload Failed", description: `Could not upload image to Appwrite: ${uploadError.message || 'Unknown error. Check console and Appwrite CORS/permissions.'}`, variant: "destructive" });
           setIsSubmitting(false);
-          return; // Stop if upload fails
+          return; 
         }
       } else if (profilePictureFiles && profilePictureFiles.length === 0 && user.photoURL && !preview) {
-        // User cleared the file input, and there was a photoURL, and preview is now null (intention to remove)
-        // For Appwrite, we'd ideally delete the old file here, but that needs the fileId.
-        // For simplicity, we'll just set photoURL to null in Firebase Auth.
-        // TODO: Implement deletion from Appwrite if `oldFileId` is tracked.
         newPhotoURL = null;
         toast({ title: "Profile Picture Removed", description: "Your profile picture will be removed from your Firebase profile.", variant: "default"});
       }
 
-      // Update Firebase Auth profile (displayName and newPhotoURL from Appwrite)
       await updateProfile(auth.currentUser, {
         displayName: data.fullName,
         photoURL: newPhotoURL,
@@ -182,9 +184,7 @@ export default function CompleteProfilePage() {
       
       console.log("Firebase Auth profile updated. Name:", data.fullName, "PhotoURL:", newPhotoURL);
 
-      // Save other profile data (DOB, mobile) to localStorage as before
       const profileDataToStore: StoredProfileData = {
-        // fullName is now directly in Firebase Auth displayName, no need to store separately unless for fallback
         dateOfBirth: data.dateOfBirth ? data.dateOfBirth.toISOString() : undefined,
         mobileNumber: data.mobileNumber,
       };
@@ -275,8 +275,6 @@ export default function CompleteProfilePage() {
                     width={100} 
                     height={100} 
                     className="rounded-full object-cover border shadow-sm" 
-                    // Add key to force re-render if src changes but is same URL (cache issue)
-                    // This is more relevant if preview source changes between local FileReader and Appwrite URL
                     key={preview} 
                   />
                 </div>
@@ -295,16 +293,18 @@ export default function CompleteProfilePage() {
             </Button>
           </form>
            <div className="mt-4 text-xs text-muted-foreground">
-              <p><strong>Important:</strong> Ensure your Appwrite environment variables (Endpoint, Project ID, Bucket ID) are set correctly in <code>.env.local</code> and that your Appwrite bucket has appropriate permissions for uploads and public reads.</p>
-              <p>Example required <code>.env.local</code> variables:</p>
+              <p><strong>Important:</strong> Ensure your Appwrite environment variables (Endpoint, Project ID, Bucket ID) are set correctly in <code>.env.local</code> (for local dev) AND in your Vercel deployment environment variables. Also, verify Appwrite bucket permissions for uploads and public reads.</p>
+              <p>Example required <code>.env.local</code> / Vercel variables:</p>
               <ul className="list-disc list-inside pl-4">
                 <li><code>NEXT_PUBLIC_APPWRITE_ENDPOINT=...</code></li>
                 <li><code>NEXT_PUBLIC_APPWRITE_PROJECT_ID=...</code></li>
                 <li><code>NEXT_PUBLIC_APPWRITE_BUCKET_ID=...</code></li>
               </ul>
+              <p className="mt-2">Check your browser's developer console for detailed logs if uploads fail.</p>
             </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+
