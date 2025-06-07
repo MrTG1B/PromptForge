@@ -10,14 +10,8 @@ import { ThemeProvider } from 'next-themes';
 const facebookAppId = '1663861460968287';
 const recaptchaSiteKeyFromEnv = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 
-// --- Critical for Social Sharing ---
-// 1. NEXT_PUBLIC_SITE_URL: This environment variable MUST be set to your production URL in Vercel/hosting.
-//    e.g., NEXT_PUBLIC_SITE_URL=https://your-promptforge-app.com
-// 2. Image File: Ensure an image (e.g., 'promptforge-og.png') exists in your 'public' folder.
-//    Recommended dimensions: 1200x630px. Keep file size reasonable (e.g., < 300KB for WhatsApp, < 1MB generally).
-
 let resolvedSiteUrl: URL;
-const defaultSiteUrlString = 'https://prompt-forge-blond.vercel.app'; // Default fallback
+const defaultSiteUrlString = 'https://prompt-forge-blond.vercel.app';
 
 try {
   const siteUrlString = process.env.NEXT_PUBLIC_SITE_URL || defaultSiteUrlString;
@@ -30,10 +24,8 @@ try {
   resolvedSiteUrl = new URL(defaultSiteUrlString);
 }
 
-// IMPORTANT: This path is relative to the `public` folder root.
-// Your image MUST be at `public/promptforge-og.png`.
-const ogImageRelativePath = '/promptforge-og.png';
-const ogImageType = 'image/png'; // Change to 'image/jpeg' if it's a JPG
+const ogImageRelativePath = '/promptforge-og.png'; // Image directly in public folder
+const ogImageType = 'image/png';
 
 if (!process.env.NEXT_PUBLIC_SITE_URL) {
   console.warn(
@@ -52,18 +44,24 @@ if (!recaptchaSiteKeyFromEnv || recaptchaSiteKeyFromEnv === "your_actual_recaptc
 }
 
 export const metadata: Metadata = {
-  metadataBase: resolvedSiteUrl, // Key for Next.js to resolve relative image paths
+  metadataBase: resolvedSiteUrl,
   title: 'PromptForge | AI Prompt Engineering Assistant',
   description: 'PromptForge: Your AI-powered workspace to craft, refine, and perfect prompts for any generative AI. Get better results, faster.',
   icons: {
-    icon: ogImageRelativePath, // Next.js will resolve this using metadataBase
+    icon: [
+      { url: ogImageRelativePath, type: ogImageType, sizes: 'any' }, // General purpose icon
+    ],
+    shortcut: { url: ogImageRelativePath, type: ogImageType }, // For older browsers
+    apple: [
+      { url: ogImageRelativePath, type: ogImageType, sizes: '180x180' }, // Common Apple touch icon size
+    ],
   },
   openGraph: {
     title: 'PromptForge: AI Prompt Engineering Assistant',
     description: 'Craft, refine, and perfect your AI prompts with PromptForge. Unlock the full potential of generative AI tools.',
-    url: resolvedSiteUrl.toString(), // The canonical URL of your page
+    url: resolvedSiteUrl.toString(),
     siteName: 'PromptForge',
-    images: [ // Array of images is best practice
+    images: [
       {
         url: ogImageRelativePath, // Relative path; Next.js resolves this using metadataBase
         type: ogImageType,
@@ -80,13 +78,6 @@ export const metadata: Metadata = {
     title: 'PromptForge: AI Prompt Engineering Assistant',
     description: 'Craft, refine, and perfect your AI prompts with PromptForge. Unlock the full potential of generative AI tools.',
     images: [ogImageRelativePath], // Relative path; Next.js resolves this
-    // Or using an object:
-    // images: [
-    //   {
-    //     url: ogImageRelativePath,
-    //     alt: 'PromptForge Twitter Card Image',
-    //   }
-    // ],
   },
   other: {
     'fb:app_id': facebookAppId,
