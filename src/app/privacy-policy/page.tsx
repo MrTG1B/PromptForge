@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPolicyPage() {
-  const appName = "PromptForge"; // Added appName for consistency
+  const appName = "PromptForge";
   return (
     <div className="container mx-auto max-w-3xl py-8 px-4">
       <Card className="shadow-lg border-primary/20">
@@ -27,7 +27,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-2xl font-semibold mb-3 text-primary">1. Introduction</h2>
             <p>
-              Welcome to {appName} (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;). We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application, {appName}. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the application.
+              Welcome to {appName}. We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application, {appName}. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the application.
             </p>
           </section>
 
@@ -173,3 +173,5 @@ export default function PrivacyPolicyPage() {
     </div>
   );
 }
+
+    

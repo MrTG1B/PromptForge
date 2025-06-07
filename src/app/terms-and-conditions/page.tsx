@@ -31,7 +31,7 @@ export default function TermsAndConditionsPage() {
           <section>
             <h2 className="text-2xl font-semibold mb-3 text-primary">1. Introduction</h2>
             <p>
-              Welcome to {appName}! These Terms and Conditions (&quot;Terms&quot;) govern your use of the {appName} application (the &quot;Service&quot;), provided by {companyName} (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;). By accessing or using our Service, you agree to be bound by these Terms. If you disagree with any part of the terms, then you may not access the Service.
+              Welcome to {appName}! These Terms and Conditions (&quot;Terms&quot;) govern your use of the {appName} application (the &quot;Service&quot;), provided by {companyName}. By accessing or using our Service, you agree to be bound by these Terms. If you disagree with any part of the terms, then you may not access the Service.
             </p>
           </section>
 
@@ -141,3 +141,5 @@ export default function TermsAndConditionsPage() {
     </div>
   );
 }
+
+    
