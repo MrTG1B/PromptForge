@@ -398,8 +398,6 @@ export default function UpdateProfilePage() {
       setIsSubmittingProfile(false);
       return;
     }
-    // Email verification check is more relevant if they just changed email, handled below
-    // if (isEmailPasswordUser && !user.emailVerified) { ... }
 
     if (!APPWRITE_BUCKET_ID || !APPWRITE_PROJECT_ID || !APPWRITE_ENDPOINT || APPWRITE_BUCKET_ID.includes("your-") || APPWRITE_PROJECT_ID.includes("your-") || APPWRITE_ENDPOINT.includes("your-")) {
         toast({ title: "Configuration Error", description: "Appwrite is not configured correctly. Cannot upload image.", variant: "destructive" });
@@ -429,15 +427,13 @@ export default function UpdateProfilePage() {
         dobYear: data.dobYear,
         mobileNumber: data.mobileNumber,
         photoURL: newPhotoURL,
-        email: user.email, // Use current user.email for consistency
+        email: user.email, 
         emailVerified: user.emailVerified,
         updatedAt: serverTimestamp()
       };
       await setDoc(userDocRef, profileDataForFirestore, { merge: true });
       
       toast({ title: "Profile Updated!", description: "Your profile details have been successfully updated." });
-      // Optionally, redirect or refresh data
-      // router.push('/'); // Or stay on the page
     } catch (error: any) {
       console.error("Error updating profile:", error);
       toast({ title: "Update Failed", description: error.message || "Could not update profile.", variant: "destructive" });
@@ -452,10 +448,7 @@ export default function UpdateProfilePage() {
       await updateUserEmail(data.currentPasswordForEmail, data.newEmail);
       toast({ title: "Email Update Initiated", description: "A verification email has been sent to your new address. Please verify to complete the change. Your current email remains active until the new one is verified.", duration: 10000 });
       resetEmailForm();
-      // Important: Firebase automatically handles user.emailVerified to false.
-      // The user.email property in auth.currentUser will only update after the new email is verified via the link.
-      // You may need to refresh the user state or instruct them to re-login after verification to see the change reflected in the UI immediately for user.email.
-      auth.currentUser?.reload(); // Attempt to reload user to get updated emailVerified status
+      auth.currentUser?.reload(); 
     } catch (error: any) {
       toast({ title: "Email Change Failed", description: getFirebaseAuthErrorMessage(error), variant: "destructive" });
     } finally {
@@ -499,8 +492,6 @@ export default function UpdateProfilePage() {
   }
 
   const mainFormDisabled = isSubmittingProfile || (isCropModalOpen && (!completedCrop && !preview));
-  // Note: Email verification check for main form might be too restrictive here if user just wants to update name while email change is pending.
-  // For now, let's allow main profile updates even if emailVerified is false (e.g. after an email change request).
 
   return (
     <div className="flex items-start justify-center min-h-[calc(100vh-theme(spacing.16))] py-12 px-4 sm:px-6 lg:px-8">
@@ -600,7 +591,7 @@ export default function UpdateProfilePage() {
               {errors.mobileNumber && <p className="text-sm text-destructive mt-1">{errors.mobileNumber.message}</p>}
             </div>
 
-            <Button type="submit" className="w-full" disabled={mainFormDisabled}>
+            <Button type="submit" className="w-full" disabled={mainFormDisabled || (isEmailPasswordUser && user && !user.emailVerified)}>
               {isSubmittingProfile ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-4 w-4" />}
               Save Profile Changes
             </Button>
@@ -629,7 +620,7 @@ export default function UpdateProfilePage() {
                       </div>
                       {emailErrors.currentPasswordForEmail && <p className="text-sm text-destructive mt-1">{emailErrors.currentPasswordForEmail.message}</p>}
                     </div>
-                    <Button type="submit" className="w-full" disabled={isChangingEmail}>
+                    <Button type="submit" className="w-full" disabled={isChangingEmail || (user && !user.emailVerified) }>
                       {isChangingEmail ? <Loader2 className="animate-spin mr-2" /> : <Mail className="mr-2 h-4 w-4" />}
                       Request Email Change
                     </Button>
@@ -644,8 +635,15 @@ export default function UpdateProfilePage() {
                 <AccordionContent>
                   <form onSubmit={handlePasswordSubmit(onChangePasswordSubmit)} className="space-y-4 pt-2">
                     <div>
-                      <Label htmlFor="currentPassword">Current Password</Label>
-                       <div className="relative">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="currentPassword">Current Password</Label>
+                            <Link href="/auth/forgot-password" legacyBehavior>
+                                <a tabIndex={-1} className="text-xs font-medium text-primary hover:underline">
+                                Forgot current password?
+                                </a>
+                            </Link>
+                        </div>
+                       <div className="relative mt-1">
                         <Input id="currentPassword" type={showCurrentPasswordForPassword ? "text" : "password"} {...passwordRegister("currentPassword")} placeholder="••••••••" aria-invalid={passwordErrors.currentPassword ? "true" : "false"} className="pr-10" />
                         <Button type="button" variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 px-0" onClick={() => setShowCurrentPasswordForPassword(!showCurrentPasswordForPassword)}>
                             {showCurrentPasswordForPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -682,7 +680,7 @@ export default function UpdateProfilePage() {
                       </div>
                       {passwordErrors.confirmNewPassword && <p className="text-sm text-destructive mt-1">{passwordErrors.confirmNewPassword.message}</p>}
                     </div>
-                     <Button type="submit" className="w-full" disabled={isChangingPassword}>
+                     <Button type="submit" className="w-full" disabled={isChangingPassword || (user && !user.emailVerified) }>
                        {isChangingPassword ? <Loader2 className="animate-spin mr-2" /> : <KeyRound className="mr-2 h-4 w-4" />}
                       Change Password
                     </Button>
