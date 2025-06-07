@@ -13,7 +13,7 @@ import {
   updateEmail as firebaseUpdateEmail,
   updatePassword as firebaseUpdatePassword,
   sendEmailVerification,
-  sendPasswordResetEmail as firebaseSendPasswordResetEmail, // Import new function
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   type UserCredential,
   type AuthError,
   type User as FirebaseUser,
@@ -50,10 +50,13 @@ export const signUpWithEmailPasswordAndSendVerification = async (email: string, 
     const userCredential = await firebaseCreateUserWithEmailAndPassword(auth, email, password);
     
     if (userCredential.user) {
+      // This sendEmailVerification call uses the "Email address verification" template
+      // configured in your Firebase console for initial user signup.
+      // The actionCodeSettings determine the URL the user is redirected to after successful verification.
       const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
       
       if (!siteURL || siteURL.includes("your-site-url") || siteURL === "http://localhost:9000" || siteURL === "http://localhost:3000" || siteURL === "PLACEHOLDER_SITE_URL_NOT_SET_IN_ENV") {
-        const errorMsg = `CRITICAL_CONFIG_ERROR (Firebase Auth): NEXT_PUBLIC_SITE_URL is not set correctly or is a placeholder/default local dev URL ("${siteURL}"). Email verification link will be incorrect for production. Please set this in your Vercel (or other hosting) environment variables to your production URL (e.g., https://prompt-forge-blond.vercel.app). For local development, ensure it points to your actual local dev server URL if not the default.`;
+        const errorMsg = `CRITICAL_CONFIG_ERROR (Firebase Auth - signUp): NEXT_PUBLIC_SITE_URL is not set correctly or is a placeholder/default local dev URL ("${siteURL}"). Email verification link will be incorrect for production. Please set this in your Vercel (or other hosting) environment variables to your production URL (e.g., https://prompt-forge-blond.vercel.app). For local development, ensure it points to your actual local dev server URL if not the default.`;
         console.error(errorMsg);
       }
 
@@ -106,9 +109,17 @@ export const updateUserEmail = async (currentPasswordForReauth: string, newEmail
   
   try {
     await reauthenticateWithCredential(user, credential);
-    await firebaseUpdateEmail(user, newEmail);
+    await firebaseUpdateEmail(user, newEmail); // Request Firebase to update the email
     
+    // After requesting an email update, Firebase requires the new email to be verified.
+    // This sendEmailVerification call will use the "Email address verification" template
+    // configured in your Firebase console.
+    // The actionCodeSettings determine the URL the user is redirected to after successful verification.
     const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
+    if (!siteURL || siteURL.includes("your-site-url") || siteURL === "http://localhost:9000" || siteURL === "http://localhost:3000" || siteURL === "PLACEHOLDER_SITE_URL_NOT_SET_IN_ENV") {
+        const errorMsg = `CRITICAL_CONFIG_ERROR (Firebase Auth - updateUserEmail): NEXT_PUBLIC_SITE_URL is not set correctly or is a placeholder/default local dev URL ("${siteURL}"). Email verification link for new email will be incorrect. Please set this in your Vercel environment variables.`;
+        console.error(errorMsg);
+      }
     const actionCodeSettings: ActionCodeSettings = {
       url: siteURL ? `${siteURL}/update-profile` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/update-profile'),
       handleCodeInApp: true,
@@ -139,7 +150,13 @@ export const updateUserPassword = async (currentPasswordForReauth: string, newPa
 };
 
 export const sendPasswordResetEmail = async (email: string): Promise<void> => {
+  // This function uses the "Password reset" template configured in your Firebase console.
+  // The actionCodeSettings determine the URL the user is redirected to after a successful reset.
   const siteURL = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!siteURL || siteURL.includes("your-site-url") || siteURL === "http://localhost:9000" || siteURL === "http://localhost:3000" || siteURL === "PLACEHOLDER_SITE_URL_NOT_SET_IN_ENV") {
+        const errorMsg = `CRITICAL_CONFIG_ERROR (Firebase Auth - sendPasswordResetEmail): NEXT_PUBLIC_SITE_URL is not set correctly or is a placeholder/default local dev URL ("${siteURL}"). Password reset link will be incorrect. Please set this in your Vercel environment variables.`;
+        console.error(errorMsg);
+      }
   const actionCodeSettings: ActionCodeSettings = {
     url: siteURL ? `${siteURL}/login` : ( (typeof window !== 'undefined' ? window.location.origin : '') + '/login'), // Redirect to login page after reset
     handleCodeInApp: true,
@@ -148,15 +165,9 @@ export const sendPasswordResetEmail = async (email: string): Promise<void> => {
     await firebaseSendPasswordResetEmail(auth, email, actionCodeSettings);
   } catch (error) {
     console.error("Error sending password reset email:", error);
-    // Don't reveal if user exists or not for security reasons
-    // Throw a generic error or handle specific errors if needed (e.g. invalid email format by Firebase)
     if ((error as AuthError).code === 'auth/invalid-email') {
-        throw error; // rethrow if it's an invalid email format error
+        throw error; 
     }
-    // For other errors like auth/user-not-found, we typically don't want to inform the user
-    // as it can be a security risk. The calling function will handle showing a generic message.
-    // However, if you want to propagate the error for specific handling:
-    // throw error; 
   }
 };
 
@@ -172,12 +183,10 @@ export const getFirebaseAuthErrorMessage = (error: any): string => {
       case 'auth/operation-not-allowed':
         return 'Email/password accounts are not enabled.';
       case 'auth/weak-password':
-        return 'The password is too weak. It must be at least 6 characters and meet complexity requirements.';
+        return 'The password is too weak. It must be at least 8 characters and meet complexity requirements.';
       case 'auth/user-disabled':
         return 'This user account has been disabled.';
       case 'auth/user-not-found':
-        // For login/sensitive ops, avoid confirming user non-existence directly.
-        // For password reset, Firebase handles this by not sending if user not found.
         return 'No user found with this email, or the password was incorrect.';
       case 'auth/wrong-password':
         return 'Incorrect password. Please try again.';
@@ -199,3 +208,4 @@ export const getFirebaseAuthErrorMessage = (error: any): string => {
   }
   return 'An unexpected error occurred. Please try again.';
 };
+
