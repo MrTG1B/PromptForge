@@ -11,7 +11,7 @@ import VerifyEmailPrompt from '@/components/auth/VerifyEmailPrompt';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Wand2, ArrowRight, Zap, Settings2, LayoutGrid, Sparkles, CheckCircle } from 'lucide-react';
+import { Wand2, ArrowRight, Zap, Settings2, LayoutGrid, Sparkles, CheckCircle, Lightbulb, ClipboardCopy } from 'lucide-react';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -156,21 +156,52 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* How It Works Section */}
         <div
-          className="mt-24 w-full max-w-3xl animate-in fade-in-0 zoom-in-90 duration-500 delay-300"
+          className="mt-24 w-full max-w-5xl animate-in fade-in-0 slide-in-from-bottom-12 duration-700 delay-300"
         >
-            <h3 className="text-2xl font-semibold font-headline text-foreground mb-8">See It In Action</h3>
-            <div className="bg-card p-2 rounded-lg shadow-xl border border-border transition-all duration-300 hover:scale-105 hover:shadow-2xl">
-                  <Image
-                    src="https://placehold.co/700x400.png"
-                    alt="PromptForge Workspace Screenshot Preview"
-                    width={700}
-                    height={400}
-                    className="rounded-md "
-                    data-ai-hint="app interface"
-                />
-            </div>
-            {/* Caption removed */}
+          <h2 className="text-3xl font-semibold font-headline text-foreground mb-12">How PromptForge Works</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-400 hover:scale-105">
+              <CardHeader className="items-center">
+                <div className="bg-accent/10 p-4 rounded-full mb-4 inline-block">
+                  <Lightbulb className="h-8 w-8 text-accent" />
+                </div>
+                <CardTitle className="text-xl font-semibold">1. Input Your Idea</CardTitle>
+              </CardHeader>
+              <CardContent className="flex-grow">
+                <p className="text-muted-foreground text-sm">
+                  Start with a basic concept or goal for your AI interaction. No need for perfection at this stage.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-500 hover:scale-105">
+              <CardHeader className="items-center">
+                  <div className="bg-accent/10 p-4 rounded-full mb-4 inline-block">
+                    <Wand2 className="h-8 w-8 text-accent" />
+                  </div>
+                <CardTitle className="text-xl font-semibold">2. AI Refinement</CardTitle>
+              </CardHeader>
+              <CardContent className="flex-grow">
+                <p className="text-muted-foreground text-sm">
+                  Let PromptForge analyze and enhance your idea, adding detail, structure, and clarity.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col text-center animate-in fade-in-0 slide-in-from-bottom-8 duration-500 delay-600 hover:scale-105">
+              <CardHeader className="items-center">
+                <div className="bg-accent/10 p-4 rounded-full mb-4 inline-block">
+                    <ClipboardCopy className="h-8 w-8 text-accent" />
+                </div>
+                <CardTitle className="text-xl font-semibold">3. Use Your Prompt</CardTitle>
+              </CardHeader>
+              <CardContent className="flex-grow">
+                <p className="text-muted-foreground text-sm">
+                  Copy the optimized prompt and use it with your favorite AI tools to achieve superior results.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <div
