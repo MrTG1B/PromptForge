@@ -422,7 +422,7 @@ export default function CompleteProfilePage() {
 
 
             <div>
-              <Label htmlFor="profilePictureInput">Profile Picture (Optional, max 5MB)</Label>
+              <Label htmlFor="profilePictureInput">Profile Picture (Optional, max 5MB, JPG/PNG)</Label>
               <Input
                 id="profilePictureInput"
                 type="file"
@@ -435,12 +435,13 @@ export default function CompleteProfilePage() {
               
               {imgSrc && (
                 <div className="mt-4 p-2 border rounded-md bg-muted/30">
-                  <p className="text-sm text-muted-foreground mb-2 flex items-center"><Crop className="w-4 h-4 mr-1" /> Crop your image (square aspect ratio):</p>
+                  <p className="text-sm text-muted-foreground mb-2 flex items-center"><Crop className="w-4 h-4 mr-1" /> Crop your image (circular):</p>
                   <ReactCrop
                     crop={crop}
                     onChange={c => setCrop(c)}
                     onComplete={c => setCompletedCrop(c)}
                     aspect={1} 
+                    circularCrop={true}
                     minWidth={50}
                     minHeight={50}
                     ruleOfThirds
@@ -492,5 +493,7 @@ export default function CompleteProfilePage() {
         
         
       
+
+    
 
     
