@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'PromptForge',
     description: 'AI-powered prompt generation and refinement tool.',
-    images: [ 
+    images: [
       {
         url: ogImageUrl, // Absolute URL
         alt: 'PromptForge Twitter Image',
@@ -94,7 +94,7 @@ export default function RootLayout({
               FB.init({
                 appId: '${facebookAppId}',
                 cookie: true,
-                xfbml: false, 
+                xfbml: false,
                 version: 'v20.0'
               });
             };
