@@ -1,7 +1,7 @@
 // src/app/login/page.tsx
 "use client";
 
-import { useState, type SVGProps } from 'react';
+import { useState, type SVGProps, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, LogIn, UserPlus, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, LogIn, UserPlus, AlertTriangle, Eye, EyeOff, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 
@@ -50,6 +50,22 @@ const signUpSchema = z.object({
 });
 type SignUpFormValues = z.infer<typeof signUpSchema>;
 
+interface PasswordCriteria {
+  minLength: boolean;
+  uppercase: boolean;
+  lowercase: boolean;
+  number: boolean;
+  specialChar: boolean;
+}
+
+const initialPasswordCriteria: PasswordCriteria = {
+  minLength: false,
+  uppercase: false,
+  lowercase: false,
+  number: false,
+  specialChar: false,
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -61,13 +77,37 @@ export default function LoginPage() {
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const [signUpPasswordValue, setSignUpPasswordValue] = useState('');
+  const [passwordCriteria, setPasswordCriteria] = useState<PasswordCriteria>(initialPasswordCriteria);
+  const [showPasswordCriteria, setShowPasswordCriteria] = useState(false);
+
+
   const { register: registerLogin, handleSubmit: handleSubmitLogin, formState: { errors: loginErrors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
 
-  const { register: registerSignUp, handleSubmit: handleSubmitSignUp, formState: { errors: signUpErrors } } = useForm<SignUpFormValues>({
+  const { register: registerSignUp, handleSubmit: handleSubmitSignUp, formState: { errors: signUpErrors }, watch } = useForm<SignUpFormValues>({
     resolver: zodResolver(signUpSchema),
   });
+  
+  const watchedSignUpPassword = watch("password");
+
+  useEffect(() => {
+    if (activeTab === "signup" && watchedSignUpPassword !== undefined) {
+      setSignUpPasswordValue(watchedSignUpPassword);
+      const criteriaMet: PasswordCriteria = {
+        minLength: watchedSignUpPassword.length >= 8,
+        uppercase: /[A-Z]/.test(watchedSignUpPassword),
+        lowercase: /[a-z]/.test(watchedSignUpPassword),
+        number: /[0-9]/.test(watchedSignUpPassword),
+        specialChar: /[!@#$%^&*(),.?":{}|<>]/.test(watchedSignUpPassword),
+      };
+      setPasswordCriteria(criteriaMet);
+    } else {
+      setShowPasswordCriteria(false); // Hide if not on signup tab or password undefined
+    }
+  }, [watchedSignUpPassword, activeTab]);
+
 
   const handleAuthSuccess = (isNewUserFromEmailPasswordSignUp: boolean) => {
     if (isNewUserFromEmailPasswordSignUp) {
@@ -91,7 +131,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithEmailPassword(data.email, data.password);
-      handleAuthSuccess(false); // Existing user login
+      handleAuthSuccess(false);
     } catch (authError) {
       handleAuthError(authError);
     }
@@ -102,7 +142,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signUpWithEmailPassword(data.email, data.password);
-      handleAuthSuccess(true); // New user via email/password
+      handleAuthSuccess(true);
     } catch (authError) {
       handleAuthError(authError);
     }
@@ -113,7 +153,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithGoogle();
-      handleAuthSuccess(false); // Social sign-in, direct to home for now
+      handleAuthSuccess(false);
     } catch (authError) {
       handleAuthError(authError);
     }
@@ -124,11 +164,18 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithFacebook();
-      handleAuthSuccess(false); // Social sign-in, direct to home for now
+      handleAuthSuccess(false);
     } catch (authError) {
       handleAuthError(authError);
     }
   };
+
+  const PasswordRequirement: React.FC<{ met: boolean; text: string }> = ({ met, text }) => (
+    <li className={`flex items-center text-sm ${met ? 'text-green-600' : 'text-red-600'}`}>
+      {met ? <Check className="mr-2 h-4 w-4" /> : <X className="mr-2 h-4 w-4" />}
+      {text}
+    </li>
+  );
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))] py-12 px-4 sm:px-6 lg:px-8">
@@ -197,9 +244,11 @@ export default function LoginPage() {
                       id="signup-password" 
                       type={showSignUpPassword ? "text" : "password"} 
                       {...registerSignUp("password")} 
-                      placeholder="Must be at least 6 characters" 
+                      placeholder="Create your password" 
                       aria-invalid={signUpErrors.password ? "true" : "false"}
                       className="pr-10"
+                      onFocus={() => setShowPasswordCriteria(true)}
+                      // onBlur={() => setShowPasswordCriteria(false)} // Optionally hide on blur if empty
                     />
                      <Button 
                       type="button" 
@@ -213,6 +262,16 @@ export default function LoginPage() {
                     </Button>
                   </div>
                   {signUpErrors.password && <p className="text-sm text-destructive mt-1">{signUpErrors.password.message}</p>}
+                  
+                  {showPasswordCriteria && (
+                    <ul className="mt-2 space-y-1 p-3 bg-muted/50 rounded-md">
+                      <PasswordRequirement met={passwordCriteria.minLength} text="At least 8 characters" />
+                      <PasswordRequirement met={passwordCriteria.uppercase} text="At least one uppercase letter (A-Z)" />
+                      <PasswordRequirement met={passwordCriteria.lowercase} text="At least one lowercase letter (a-z)" />
+                      <PasswordRequirement met={passwordCriteria.number} text="At least one number (0-9)" />
+                      <PasswordRequirement met={passwordCriteria.specialChar} text="At least one special character (e.g., !@#$%)" />
+                    </ul>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="confirmPassword">Confirm Password</Label>

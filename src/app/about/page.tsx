@@ -67,10 +67,6 @@ export default function AboutPage() {
                 We envision a future where interacting with AI is seamless and highly productive for everyone. As AI models become more sophisticated, the ability to communicate effectively with them will be an essential skill. {appName} strives to be at the forefront of this evolution, continuously innovating and providing tools that bridge the gap between human intention and AI execution.
             </p>
           </section>
-
-          <p className="text-sm text-muted-foreground text-center mt-8">
-            <strong>This is placeholder content.</strong> Please expand this page with original and genuine information about your application, team (if applicable), and your unique value proposition. The more authentic and detailed, the better for AdSense and your users.
-          </p>
         </CardContent>
         <CardFooter className="flex justify-center pt-4">
           <Link href="/" passHref>

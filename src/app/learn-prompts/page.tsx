@@ -81,10 +81,6 @@ export default function LearnPromptsPage() {
                 Use our workspace to experiment with your prompt ideas, leverage AI suggestions, and save your best creations.
             </p>
           </section>
-
-          <p className="text-sm text-muted-foreground text-center mt-8">
-            <strong>This is placeholder content.</strong> Replace this with your own detailed, original, and high-quality information about prompt engineering to satisfy AdSense content requirements. The more unique and valuable your content, the better.
-          </p>
         </CardContent>
         <CardFooter className="flex justify-center pt-4">
           <Link href="/" passHref>

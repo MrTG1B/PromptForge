@@ -130,10 +130,6 @@ export default function PrivacyPolicyPage() {
               If you have questions or comments about this Privacy Policy, please contact us at: [Your Contact Email Address or Link to Contact Form]
             </p>
           </section>
-          
-          <p className="text-sm text-muted-foreground text-center mt-8">
-            <strong>Important:</strong> This is a template and should not be considered legal advice. Consult with a legal professional to ensure your privacy policy is compliant with all applicable laws and regulations for your specific services and user base.
-          </p>
         </CardContent>
         <CardFooter className="flex justify-center pt-4">
           <Link href="/" passHref>

@@ -173,9 +173,13 @@ export default function CompleteProfilePage() {
           return; 
         }
       } else if (profilePictureFiles && profilePictureFiles.length === 0 && user.photoURL && !preview) {
-        newPhotoURL = null;
+        // This condition means the user cleared the file input, intending to remove the picture.
+        // If Appwrite stored an old file ID, this is where you'd call appwriteStorage.deleteFile(...)
+        // For now, we'll just nullify the photoURL in Firebase Auth.
+        newPhotoURL = null; 
         toast({ title: "Profile Picture Removed", description: "Your profile picture will be removed from your Firebase profile.", variant: "default"});
       }
+
 
       await updateProfile(auth.currentUser, {
         displayName: data.fullName,
@@ -275,7 +279,7 @@ export default function CompleteProfilePage() {
                     width={100} 
                     height={100} 
                     className="rounded-full object-cover border shadow-sm" 
-                    key={preview} 
+                    key={preview} // Add key to force re-render if src changes but is same string (e.g. after upload)
                   />
                 </div>
               )}
@@ -292,19 +296,8 @@ export default function CompleteProfilePage() {
               Save and Continue
             </Button>
           </form>
-           <div className="mt-4 text-xs text-muted-foreground">
-              <p><strong>Important:</strong> Ensure your Appwrite environment variables (Endpoint, Project ID, Bucket ID) are set correctly in <code>.env.local</code> (for local dev) AND in your Vercel deployment environment variables. Also, verify Appwrite bucket permissions for uploads and public reads.</p>
-              <p>Example required <code>.env.local</code> / Vercel variables:</p>
-              <ul className="list-disc list-inside pl-4">
-                <li><code>NEXT_PUBLIC_APPWRITE_ENDPOINT=...</code></li>
-                <li><code>NEXT_PUBLIC_APPWRITE_PROJECT_ID=...</code></li>
-                <li><code>NEXT_PUBLIC_APPWRITE_BUCKET_ID=...</code></li>
-              </ul>
-              <p className="mt-2">Check your browser's developer console for detailed logs if uploads fail.</p>
-            </div>
         </CardContent>
       </Card>
     </div>
   );
 }
-

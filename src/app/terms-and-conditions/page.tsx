@@ -99,10 +99,6 @@ export default function TermsAndConditionsPage() {
               If you have any questions about these Terms, please contact us at: <Link href={`mailto:${contactEmail}`} className="text-accent hover:underline">{contactEmail}</Link>.
             </p>
           </section>
-          
-          <p className="text-sm text-muted-foreground text-center mt-8">
-            <strong>Important:</strong> This is a template and should not be considered legal advice. Consult with a legal professional to ensure your Terms and Conditions are compliant and appropriate for your specific services.
-          </p>
         </CardContent>
         <CardFooter className="flex justify-center pt-4">
           <Link href="/" passHref>
