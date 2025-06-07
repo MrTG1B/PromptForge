@@ -16,7 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowRight, Camera } from 'lucide-react';
+import { Loader2, ArrowRight, Camera, UserCircle2 } from 'lucide-react'; // Added UserCircle2 for generic fallback
 import { auth } from '@/lib/firebase/config';
 import { updateProfile } from 'firebase/auth';
 import { storage as appwriteStorage } from '@/lib/appwrite/config';
@@ -62,24 +62,21 @@ const profileSchema = z.object({
         return /^\d{4}$/.test(val) && yearNum >= 1900 && yearNum <= currentYear;
     }, { message: `Year must be between 1900 and ${currentYear}.` }),
   mobileNumber: z.string({ required_error: "Mobile number is required."})
-    .min(1, { message: "Mobile number is required."}) // Ensures not an empty string if regex allows (it doesn't here)
+    .min(1, { message: "Mobile number is required."}) 
     .regex(/^\+\d{1,3}\d{4,14}$/, { message: "Invalid mobile number format (e.g., +11234567890)."}),
 }).refine(data => {
-  // This refine assumes dobDay, dobMonth, dobYear are provided, as they are individually required.
-  // It only validates if the provided combination forms a real date.
   const day = parseInt(data.dobDay, 10);
   const month = parseInt(data.dobMonth, 10);
   const year = parseInt(data.dobYear, 10);
 
-  // Basic check if parsing failed, though individual field validation should catch non-numbers.
   if (isNaN(day) || isNaN(month) || isNaN(year)) {
     return false;
   }
-  const date = new Date(year, month - 1, day); // month is 0-indexed
+  const date = new Date(year, month - 1, day);
   return date.getFullYear() === year && date.getMonth() === (month - 1) && date.getDate() === day;
 }, {
   message: "The date of birth entered is not a valid date.",
-  path: ["dobDay"], // Associate error with one of the date fields
+  path: ["dobDay"], 
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -118,7 +115,6 @@ async function getCroppedImageFile(
   const scaleX = image.naturalWidth / image.width;
   const scaleY = image.naturalHeight / image.height;
 
-  // Clamp crop dimensions to be within the image boundaries
   const sourceX = Math.max(0, crop.x * scaleX);
   const sourceY = Math.max(0, crop.y * scaleY);
   const sourceWidth = Math.min(image.naturalWidth - sourceX, crop.width * scaleX);
@@ -128,7 +124,6 @@ async function getCroppedImageFile(
     console.error("Invalid crop dimensions (<=0). Width:", sourceWidth, "Height:", sourceHeight);
     return null;
   }
-
 
   canvas.width = sourceWidth;
   canvas.height = sourceHeight;
@@ -193,7 +188,8 @@ export default function CompleteProfilePage() {
     }
   });
 
-  const mobileNumberValue = watch('mobileNumber'); 
+  const watchedFirstName = watch('firstName');
+  const watchedLastName = watch('lastName');
 
   useEffect(() => {
     if (user) {
@@ -204,7 +200,8 @@ export default function CompleteProfilePage() {
           setValue('lastName', nameParts.slice(1).join(' ') || '');
         }
       }
-      if (user.photoURL) {
+      // Set initial preview from user.photoURL if available and no image selected yet
+      if (user.photoURL && !imgSrc && !croppedImageFile) {
         setPreview(user.photoURL); 
       }
 
@@ -223,7 +220,7 @@ export default function CompleteProfilePage() {
         }
       }
     }
-  }, [user, setValue, watch]);
+  }, [user, setValue, watch, imgSrc, croppedImageFile]);
 
 
   useEffect(() => {
@@ -300,8 +297,16 @@ export default function CompleteProfilePage() {
     setImgSrc(null); 
     setCrop(undefined);
     setCompletedCrop(null);
+    // Do not reset croppedImageFile here, as it might hold the previously saved crop
     setIsCropModalOpen(false);
     if (fileInputRef.current) fileInputRef.current.value = ""; 
+    // If user cancels, reset preview to user's photoURL or initials if no user.photoURL
+    if (user && user.photoURL && !croppedImageFile) {
+        setPreview(user.photoURL);
+    } else if (!croppedImageFile) {
+        // If no user.photoURL and no cropped file, preview should show initials or camera
+        setPreview(null); 
+    }
   };
 
   const onSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
@@ -311,11 +316,6 @@ export default function CompleteProfilePage() {
       setIsSubmitting(false);
       return;
     }
-
-    console.log("Attempting Appwrite Upload. Config used:");
-    console.log("APPWRITE_ENDPOINT:", APPWRITE_ENDPOINT);
-    console.log("APPWRITE_PROJECT_ID:", APPWRITE_PROJECT_ID);
-    console.log("APPWRITE_BUCKET_ID:", APPWRITE_BUCKET_ID);
 
     if (!APPWRITE_BUCKET_ID || !APPWRITE_PROJECT_ID || !APPWRITE_ENDPOINT || APPWRITE_BUCKET_ID.includes("your-") || APPWRITE_PROJECT_ID.includes("your-") || APPWRITE_ENDPOINT.includes("your-")) {
         toast({ title: "Configuration Error", description: "Appwrite is not configured correctly in environment variables. Cannot upload image.", variant: "destructive" });
@@ -330,9 +330,8 @@ export default function CompleteProfilePage() {
     try {
       if (croppedImageFile) { 
         try {
-          toast({ title: "Uploading Cropped Image...", description: "Please wait while your image is uploaded to Appwrite.", variant: "default" });
+          toast({ title: "Uploading Profile Picture...", description: "Please wait while your image is uploaded.", variant: "default" });
           
-          console.log(`Uploading cropped image to Appwrite Bucket: ${APPWRITE_BUCKET_ID} with File ID: unique`);
           const appwriteFile = await appwriteStorage.createFile(
             APPWRITE_BUCKET_ID,
             ID.unique(),
@@ -340,11 +339,10 @@ export default function CompleteProfilePage() {
           );
           
           newPhotoURL = `${APPWRITE_ENDPOINT}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${appwriteFile.$id}/view?project=${APPWRITE_PROJECT_ID}`;
-          console.log("Cropped image uploaded to Appwrite. File ID:", appwriteFile.$id, "Constructed URL:", newPhotoURL);
-          toast({ title: "Image Uploaded!", description: "Profile picture successfully uploaded to Appwrite.", variant: "default"});
+          toast({ title: "Image Uploaded!", description: "Profile picture successfully uploaded.", variant: "default"});
         } catch (uploadError: any) {
           console.error("Appwrite upload error:", uploadError);
-          toast({ title: "Upload Failed", description: `Could not upload image to Appwrite: ${uploadError.message || 'Unknown error. Check console and Appwrite CORS/permissions.'}`, variant: "destructive" });
+          toast({ title: "Upload Failed", description: `Could not upload image: ${uploadError.message || 'Unknown error.'}`, variant: "destructive" });
           setIsSubmitting(false);
           return;
         }
@@ -352,11 +350,9 @@ export default function CompleteProfilePage() {
 
       await updateProfile(auth.currentUser, {
         displayName: newDisplayName,
-        photoURL: newPhotoURL,
+        photoURL: newPhotoURL, // This will be null if no image was ever uploaded, or the new URL
       });
       
-      console.log("Firebase Auth profile updated. Name:", newDisplayName, "PhotoURL:", newPhotoURL);
-
       const profileDataToStore: StoredProfileData = {
         firstName: data.firstName,
         lastName: data.lastName,
@@ -366,11 +362,10 @@ export default function CompleteProfilePage() {
         mobileNumber: data.mobileNumber,
       };
       localStorage.setItem(`profileData_${user.uid}`, JSON.stringify(profileDataToStore));
-      console.log("Other profile data saved to localStorage:", profileDataToStore);
 
       toast({
         title: "Profile Updated!",
-        description: "Your Firebase profile has been updated. Other details saved locally.",
+        description: "Your profile has been successfully updated.",
       });
       router.push('/');
     } catch (error: any) {
@@ -387,6 +382,17 @@ export default function CompleteProfilePage() {
   
   const triggerFileInput = () => {
     fileInputRef.current?.click();
+  };
+
+  const getFormInitials = () => {
+    const fName = watchedFirstName || '';
+    const lName = watchedLastName || '';
+    if (fName && lName) {
+      return `${fName.charAt(0)}${lName.charAt(0)}`.toUpperCase();
+    } else if (fName) {
+      return fName.charAt(0).toUpperCase();
+    }
+    return null;
   };
 
   if (authLoading || !user) {
@@ -426,7 +432,13 @@ export default function CompleteProfilePage() {
                     unoptimized={preview.startsWith('blob:') || preview.startsWith('data:')}
                   />
                 ) : (
-                  <Camera className="w-12 h-12 text-primary/70 group-hover:text-primary transition-colors" />
+                  (() => {
+                    const formInitials = getFormInitials();
+                    if (formInitials) {
+                      return <span className="text-4xl font-semibold text-primary">{formInitials}</span>;
+                    }
+                    return <Camera className="w-12 h-12 text-primary/70 group-hover:text-primary transition-colors" />;
+                  })()
                 )}
               </button>
               <Input
@@ -557,7 +569,4 @@ export default function CompleteProfilePage() {
   );
 }
 
-    
-        
       
-    
