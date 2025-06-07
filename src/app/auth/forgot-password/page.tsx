@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { sendPasswordResetEmail } from '@/lib/firebase/auth'; // We'll create this
+import { sendPasswordResetEmail, getFirebaseAuthErrorMessage } from '@/lib/firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,17 +42,11 @@ export default function ForgotPasswordPage() {
       setEmailSent(true);
       toast({
         title: "Password Reset Email Sent",
-        description: `If an account exists for ${data.email}, a password reset link has been sent. Please check your inbox (and spam folder).`,
+        description: `A password reset link has been sent to ${data.email}. Please check your inbox (and spam folder).`,
         duration: 10000,
       });
     } catch (authError: any) {
-      let message = "Failed to send password reset email. Please try again.";
-      // Firebase often returns 'auth/user-not-found' but for security,
-      // it's better not to confirm if an email exists or not.
-      // So, we'll use a generic message unless it's a clear non-user-related error.
-      if (authError.code && authError.code !== 'auth/user-not-found') {
-        message = authError.message;
-      }
+      const message = getFirebaseAuthErrorMessage(authError);
       setError(message);
       toast({
         title: "Error",
@@ -71,7 +65,7 @@ export default function ForgotPasswordPage() {
           <Mail className="mx-auto h-12 w-12 text-primary mb-4" />
           <CardTitle className="font-headline text-3xl">Forgot Your Password?</CardTitle>
           <CardDescription>
-            {emailSent 
+            {emailSent
               ? "Check your email for the reset link."
               : "Enter your email address and we'll send you a link to reset your password."
             }
@@ -80,7 +74,7 @@ export default function ForgotPasswordPage() {
         <CardContent>
           {emailSent ? (
             <div className="text-center p-4 bg-green-50 border border-green-200 rounded-md">
-              <p className="text-green-700">A password reset link has been sent to the email address provided, if it's associated with an account. Please check your inbox and spam folder.</p>
+              <p className="text-green-700">A password reset link has been sent to the email address provided. Please check your inbox and spam folder.</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
