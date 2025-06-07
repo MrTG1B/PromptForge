@@ -36,7 +36,7 @@ const UserProfile: React.FC = () => {
   const getInitials = (name: string | null | undefined): string | null => {
     const trimmedName = name?.trim();
     if (!trimmedName) {
-      return null; // Return null to make the fallback empty if no name
+      return null; 
     }
     const names = trimmedName.split(' ');
     if (names.length === 1 && names[0]) {
@@ -54,7 +54,7 @@ const UserProfile: React.FC = () => {
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-9 w-9">
             <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
-            <AvatarFallback>{getInitials(user.displayName) || <UserCircle2 className="h-5 w-5" />}</AvatarFallback>
+            <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
