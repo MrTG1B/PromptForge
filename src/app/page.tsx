@@ -30,7 +30,7 @@ export default function HomePage() {
         </div>
       ) : (
         // New container for logged-out landing page
-        <div className="container mx-auto px-4 py-8 overflow-x-hidden bg-gradient-to-br from-primary/5 via-background to-background/80 min-h-[calc(100vh-theme(spacing.16))]">
+        <div className="container mx-auto px-4 py-8 overflow-x-hidden bg-animated-gradient min-h-[calc(100vh-theme(spacing.16))]">
           <div className="flex flex-col items-center justify-center text-center">
             {/* Hero Section */}
             <div className="animate-in fade-in-0 slide-in-from-top-8 duration-700">
@@ -53,8 +53,8 @@ export default function HomePage() {
             </div>
 
             {/* Feature Highlights Section */}
-            <div 
-              className="mt-24 w-full max-w-5xl animate-in fade-in-0 slide-in-from-bottom-12 duration-500 delay-200" 
+            <div
+              className="mt-24 w-full max-w-5xl animate-in fade-in-0 slide-in-from-bottom-12 duration-500 delay-200"
               data-animate-on-scroll
             >
               <h2 className="text-3xl font-semibold font-headline text-foreground mb-12">Why Choose PromptForge?</h2>
@@ -105,8 +105,8 @@ export default function HomePage() {
             </div>
 
             {/* Placeholder Image section */}
-            <div 
-              className="mt-24 w-full max-w-3xl animate-in fade-in-0 zoom-in-90 duration-500 delay-300" 
+            <div
+              className="mt-24 w-full max-w-3xl animate-in fade-in-0 zoom-in-90 duration-500 delay-300"
               data-animate-on-scroll
             >
                 <h3 className="text-2xl font-semibold font-headline text-foreground mb-8">See It In Action</h3>
@@ -124,8 +124,8 @@ export default function HomePage() {
             </div>
 
             {/* Call to Action Section */}
-            <div 
-              className="mt-24 mb-10 py-16 bg-muted/30 rounded-lg w-full max-w-4xl px-6 animate-in fade-in-0 slide-in-from-bottom-12 duration-700 delay-300" 
+            <div
+              className="mt-24 mb-10 py-16 bg-muted/30 rounded-lg w-full max-w-4xl px-6 animate-in fade-in-0 slide-in-from-bottom-12 duration-700 delay-300"
               data-animate-on-scroll
             >
                 <h2 className="text-3xl font-semibold font-headline text-foreground mb-5">Ready to Forge Perfect Prompts?</h2>
