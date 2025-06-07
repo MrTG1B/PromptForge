@@ -103,12 +103,12 @@ export default function HomePage() {
                 <h3 className="text-2xl font-semibold font-headline text-foreground mb-8">See It In Action</h3>
                 <div className="bg-card p-2 rounded-lg shadow-xl border border-border">
                      <Image
-                        src="https://placehold.co/800x450.png"
+                        src="https://placehold.co/700x400.png"
                         alt="PromptForge Workspace Preview"
-                        width={800}
-                        height={450}
+                        width={700}
+                        height={400}
                         className="rounded-md "
-                        data-ai-hint="dashboard interface"
+                        data-ai-hint="app screenshot"
                     />
                 </div>
                 <p className="text-xs text-muted-foreground mt-4 italic">Conceptual preview of the PromptForge workspace.</p>
