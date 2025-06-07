@@ -1,3 +1,4 @@
+
 // src/app/privacy-policy/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPolicyPage() {
+  const appName = "PromptForge"; // Added appName for consistency
   return (
     <div className="container mx-auto max-w-3xl py-8 px-4">
       <Card className="shadow-lg border-primary/20">
@@ -25,7 +27,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-2xl font-semibold mb-3 text-primary">1. Introduction</h2>
             <p>
-              Welcome to PromptForge (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;). We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application, PromptForge. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the application.
+              Welcome to {appName} (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;). We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application, {appName}. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the application.
             </p>
           </section>
 
@@ -39,10 +41,13 @@ export default function PrivacyPolicyPage() {
                 <strong>Personal Data:</strong> Personally identifiable information, such as your name, email address, and profile picture, that you voluntarily give to us when you register with the Application (e.g., via Google or Facebook Sign-In).
               </li>
               <li>
-                <strong>Derivative Data:</strong> Information our servers automatically collect when you access the Application, such as your IP address, your browser type, your operating system, your access times, and the pages you have viewed directly before and after accessing the Application. (Note: This is a placeholder, specify actual data collected, e.g., Vercel Analytics).
+                <strong>Derivative Data:</strong> Information our servers automatically collect when you access the Application, such as your IP address, your browser type, your operating system, your access times, and the pages you have viewed directly before and after accessing the Application. (Note: We use Vercel Analytics for this purpose, which provides aggregated and anonymized data).
               </li>
               <li>
                 <strong>Data from Social Networks:</strong> User information from social networking sites, such as Google and Facebook, including your name, your social network username, location, gender, birth date, email address, profile picture, and public data for contacts, if you connect your account to such social networks. This information may also include the contact information of anyone you invite to use and/or join the Application.
+              </li>
+              <li>
+                <strong>User-Provided Prompts and Inputs:</strong> Any text, ideas, or parameters you input into {appName} for the purpose of generating or refining prompts are processed by our system and may be sent to third-party AI model providers.
               </li>
             </ul>
           </section>
@@ -54,12 +59,13 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul className="list-disc list-inside ml-4 space-y-1 mt-2">
               <li>Create and manage your account.</li>
-              <li>Email you regarding your account or order.</li>
-              <li>Enable user-to-user communications.</li>
+              <li>Email you regarding your account.</li>
+              <li>Enable user-to-user communications (if applicable, specify if this feature exists).</li>
               <li>Generate a personal profile about you to make future visits to the Application more personalized.</li>
-              <li>Monitor and analyze usage and trends to improve your experience with the Application.</li>
+              <li>Monitor and analyze usage and trends to improve your experience with the Application (using Vercel Analytics).</li>
               <li>Notify you of updates to the Application.</li>
-              <li>[Add other uses relevant to PromptForge, e.g., related to AI prompt generation services]</li>
+              <li>Provide, maintain, and improve the AI prompt generation and refinement services.</li>
+              <li>Respond to your comments, questions, and requests and provide customer service.</li>
             </ul>
           </section>
 
@@ -73,12 +79,21 @@ export default function PrivacyPolicyPage() {
                 <strong>By Law or to Protect Rights:</strong> If we believe the release of information about you is necessary to respond to legal process, to investigate or remedy potential violations of our policies, or to protect the rights, property, and safety of others, we may share your information as permitted or required by any applicable law, rule, or regulation.
               </li>
               <li>
-                <strong>Third-Party Service Providers:</strong> We may share your information with third parties that perform services for us or on our behalf, including payment processing, data analysis, email delivery, hosting services, customer service, and marketing assistance. (e.g., Google for authentication and reCAPTCHA, Vercel for hosting and analytics, Facebook for authentication).
+                <strong>Third-Party Service Providers:</strong> We may share your information with third parties that perform services for us or on our behalf, including:
+                <ul className="list-disc list-inside ml-4 mt-1">
+                    <li>Firebase (Google) for authentication, Firestore database (user profile data), and reCAPTCHA.</li>
+                    <li>Appwrite for profile image storage.</li>
+                    <li>Google AI (Gemini) for AI model processing.</li>
+                    <li>Vercel for hosting and analytics.</li>
+                    <li>Facebook for authentication (if used).</li>
+                </ul>
               </li>
               <li>
-                <strong>AI Model Providers:</strong> Prompts and related inputs you provide may be sent to third-party AI model providers (e.g., Google AI/Gemini) to generate responses. These providers have their own privacy policies regarding data handling.
+                <strong>AI Model Providers:</strong> Prompts and related inputs you provide are sent to third-party AI model providers (e.g., Google AI/Gemini via Genkit) to generate responses. These providers have their own privacy policies regarding data handling. We do not store your prompts beyond what is necessary for the immediate processing by the AI model unless you explicitly save them within features of {appName} (if such features exist).
               </li>
-              <li>[Add other disclosures]</li>
+               <li>
+                <strong>Business Transfers:</strong> We may share or transfer your information in connection with, or during negotiations of, any merger, sale of company assets, financing, or acquisition of all or a portion of our business to another company.
+              </li>
             </ul>
           </section>
           
@@ -118,16 +133,31 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mb-3 text-primary">8. Changes to This Privacy Policy</h2>
+             <h2 className="text-2xl font-semibold mb-3 text-primary">8. Your Data Rights and Choices</h2>
+            <p>
+              Depending on your location, you may have certain rights regarding your personal information, such as the right to access, correct, or delete your data.
+            </p>
+             <ul className="list-disc list-inside ml-4 space-y-1 mt-2">
+                <li>
+                    <strong>Account Information:</strong> You may at any time review or change the information in your account by logging into your account settings (via the "Update Profile" option) or contacting us.
+                </li>
+                <li>
+                    <strong>Data Deletion:</strong> To request deletion of your account and associated data, please contact us. For users who signed in via Facebook, please see our <Link href="/facebook-data-deletion" className="underline hover:text-accent">Facebook Data Deletion Instructions</Link> page.
+                </li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold mb-3 text-primary">9. Changes to This Privacy Policy</h2>
             <p>
               We may update this Privacy Policy from time to time. We will notify you of any changes by updating the &quot;Last Updated&quot; date of this Privacy Policy. You are encouraged to periodically review this Privacy Policy to stay informed of updates.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mb-3 text-primary">9. Contact Us</h2>
+            <h2 className="text-2xl font-semibold mb-3 text-primary">10. Contact Us</h2>
             <p>
-              If you have questions or comments about this Privacy Policy, please contact us at: [Your Contact Email Address or Link to Contact Form]
+              If you have questions or comments about this Privacy Policy, please contact us at: <Link href="mailto:tirthankardasgupta913913@gmail.com" className="text-accent hover:underline">tirthankardasgupta913913@gmail.com</Link>
             </p>
           </section>
         </CardContent>

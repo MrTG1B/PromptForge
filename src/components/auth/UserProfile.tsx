@@ -3,7 +3,7 @@
 "use client";
 
 import Link from 'next/link';
-import { signOut } from '@/lib/firebase/auth'; 
+import { signOut } from '@/lib/firebase/auth';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,7 @@ const UserProfile: React.FC = () => {
   const getInitials = (name: string | null | undefined): string | null => {
     const trimmedName = name?.trim();
     if (!trimmedName) {
-      return null; 
+      return null;
     }
     const names = trimmedName.split(' ');
     if (names.length === 1 && names[0]) {
@@ -46,7 +46,7 @@ const UserProfile: React.FC = () => {
     if (names.length > 1 && names[0] && names[names.length - 1]) {
       return `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase();
     }
-    return null; // Fallback for unexpected name format
+    return null;
   };
 
   const initials = getInitials(user.displayName);
@@ -76,6 +76,12 @@ const UserProfile: React.FC = () => {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href="/complete-profile">
+            <UserCircle2 className="mr-2 h-4 w-4" />
+            Update Profile
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="cursor-pointer">
           <Link href="/learn-prompts">
             <Lightbulb className="mr-2 h-4 w-4" />
             Learn Prompts
@@ -88,12 +94,6 @@ const UserProfile: React.FC = () => {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild className="cursor-pointer">
-          <Link href="/complete-profile">
-            <UserCircle2 className="mr-2 h-4 w-4" />
-            Update Profile
-          </Link>
-        </DropdownMenuItem>
         <DropdownMenuItem asChild className="cursor-pointer">
           <Link href="/privacy-policy">
             <ShieldCheck className="mr-2 h-4 w-4" />
