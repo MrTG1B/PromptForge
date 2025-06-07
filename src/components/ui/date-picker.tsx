@@ -19,9 +19,10 @@ interface DatePickerProps {
   date: Date | undefined;
   setDate: (date: Date | undefined) => void;
   placeholder?: string;
-  disabled?: boolean; // For the trigger button
-  fromDate?: Date; // For nav limits and dropdown range start
-  toDate?: Date;   // For nav limits and dropdown range end
+  disabled?: boolean;
+  fromDate?: Date;
+  toDate?: Date;
+  captionLayout?: "dropdown" | "dropdown-buttons" | "buttons"; // Added for react-day-picker v8
 }
 
 export function DatePicker({
@@ -31,6 +32,7 @@ export function DatePicker({
   disabled,
   fromDate,
   toDate,
+  captionLayout = "dropdown-buttons" // Default to dropdowns for year/month
 }: DatePickerProps) {
   return (
     <Popover>
@@ -53,12 +55,13 @@ export function DatePicker({
           selected={date}
           onSelect={setDate}
           initialFocus
-          captionLayout="dropdown-buttons"
-          fromDate={fromDate} // This limits navigation and options in dropdowns
-          toDate={toDate}     // This limits navigation and options in dropdowns
-          // react-day-picker automatically disables dates outside fromDate/toDate when they are set
+          captionLayout={captionLayout}
+          fromDate={fromDate}
+          toDate={toDate}
         />
       </PopoverContent>
     </Popover>
   );
 }
+
+    
