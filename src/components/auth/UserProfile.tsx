@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, UserCircle2, ShieldCheck, FileText } from 'lucide-react';
+import { LogOut, UserCircle2, ShieldCheck, FileText, Lightbulb, Info } from 'lucide-react'; // Added Lightbulb, Info
 
 const UserProfile: React.FC = () => {
   const { user } = useAuth();
@@ -61,6 +61,19 @@ const UserProfile: React.FC = () => {
             </p>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href="/learn-prompts">
+            <Lightbulb className="mr-2 h-4 w-4" />
+            Learn Prompts
+          </Link>
+        </DropdownMenuItem>
+         <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href="/about">
+            <Info className="mr-2 h-4 w-4" />
+            About Us
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild className="cursor-pointer">
           <Link href="/privacy-policy">

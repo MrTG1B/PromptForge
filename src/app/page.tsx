@@ -1,4 +1,3 @@
-
 // src/app/page.tsx
 "use client";
 
@@ -42,21 +41,21 @@ export default function HomePage() {
       ) : (
         <Card className="mt-10 text-center shadow-xl border-primary/20">
           <CardHeader>
-            <Wand2 className="mx-auto h-20 w-20 text-primary mb-4" />
+            <Wand2 className="mx-auto h-24 w-24 text-primary mb-4" /> 
             <CardTitle className="font-headline text-4xl">Welcome to PromptForge!</CardTitle>
             <CardDescription className="text-lg text-muted-foreground pt-2">
-              Unlock the power of AI with perfectly crafted prompts. <br />
-              Log in to start forging your masterpiece.
+              The intelligent workspace to craft, refine, and perfect your AI prompts. <br />
+              Log in to start forging your masterpiece and unlock advanced AI capabilities.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4 pb-8">
             <p className="text-foreground text-center">
-              Please log in to access the prompt generation tools.
+              Please log in to access the prompt generation tools and educational resources.
             </p>
             <LoginButton /> 
             <Button 
               onClick={handleFacebookLogin} 
-              variant="outline" // You can change variant, e.g. to "default" for Facebook blue if you add custom styles
+              variant="outline" 
               className="w-full sm:w-auto flex items-center justify-center px-6 py-3 shadow-sm hover:shadow-md transition-shadow duration-150 bg-blue-600 hover:bg-blue-700 text-white"
             >
               <FacebookLogo />
