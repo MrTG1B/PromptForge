@@ -1,8 +1,10 @@
+
 // src/app/complete-profile/page.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image'; // Added for image preview
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,14 +13,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DatePicker } from '@/components/ui/date-picker'; // Ensure this path is correct
+import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, UserCheck, ArrowRight } from 'lucide-react';
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const profileSchema = z.object({
   fullName: z.string().min(1, { message: "Full name is required." }),
   dateOfBirth: z.date({ required_error: "Date of birth is required." }).optional(),
-  profilePictureUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  profilePicture: z
+    .instanceof(FileList)
+    .optional()
+    .refine(
+        (files) => !files || files.length === 0 || files[0].size <= MAX_FILE_SIZE,
+        `Max image size is 5MB.`
+    )
+    .refine(
+        (files) => !files || files.length === 0 || ACCEPTED_IMAGE_TYPES.includes(files[0].type),
+        `Only .jpg, .jpeg, .png, and .webp formats are supported.`
+    ),
   mobileNumber: z.string().regex(/^\+?[1-9]\d{1,14}$/, { message: "Invalid mobile number format (e.g., +1234567890 or 1234567890)."}).optional().or(z.literal('')),
 });
 
@@ -29,15 +44,31 @@ export default function CompleteProfilePage() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
 
-  const { control, register, handleSubmit, formState: { errors } } = useForm<ProfileFormValues>({
+  const { control, register, handleSubmit, formState: { errors }, watch } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       fullName: '',
-      profilePictureUrl: '',
       mobileNumber: '',
+      // profilePicture will be undefined by default
     }
   });
+
+  const profilePictureFiles = watch("profilePicture");
+
+  useEffect(() => {
+    if (profilePictureFiles && profilePictureFiles.length > 0) {
+      const file = profilePictureFiles[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setPreview(null);
+    }
+  }, [profilePictureFiles]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -47,17 +78,36 @@ export default function CompleteProfilePage() {
 
   const onSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
     setIsSubmitting(true);
-    // In a real application, you would save this data to your backend (e.g., Firestore)
-    console.log("Profile data to save:", data);
+    const { profilePicture, ...otherData } = data;
+    
+    let profilePictureInfoForBackend = null;
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (profilePicture && profilePicture.length > 0) {
+      const file = profilePicture[0];
+      console.log("Profile picture file selected:", file.name, file.type, file.size);
+      // TODO: Implement actual file upload to Firebase Storage here
+      // 1. Upload `file` to Firebase Storage (e.g., using a unique path like `users/${user.uid}/profile.${fileExtension}`)
+      // 2. Get the downloadURL of the uploaded image.
+      // 3. Store this downloadURL in your user profile data (e.g., in Firestore).
+      // profilePictureInfoForBackend = await uploadFileAndGetURL(file); // This is a placeholder for actual upload logic
+      toast({
+        title: "Image Selected",
+        description: `Selected: ${file.name}. Actual upload to cloud storage is not implemented in this step.`,
+        variant: "default",
+      });
+      profilePictureInfoForBackend = { name: file.name, type: file.type, size: file.size }; // For logging
+    }
+
+    console.log("Profile data to save (excluding actual file upload):", { ...otherData, profilePictureInfo: profilePictureInfoForBackend });
+
+    // Simulate API call to save profile data
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     toast({
       title: "Profile Updated!",
-      description: "Your additional details have been saved.",
+      description: "Your additional details have been processed (image upload is a placeholder).",
     });
-    router.push('/'); // Redirect to homepage
+    router.push('/'); 
     setIsSubmitting(false);
   };
 
@@ -68,6 +118,11 @@ export default function CompleteProfilePage() {
       </div>
     );
   }
+
+  const today = new Date();
+  const hundredYearsAgo = new Date(new Date().setFullYear(new Date().getFullYear() - 100));
+  // Users must be born in the past. Setting toDate to today ensures no future dates.
+  // fromDate sets the earliest selectable date (100 years ago).
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))] py-12 px-4 sm:px-6 lg:px-8">
@@ -97,6 +152,8 @@ export default function CompleteProfilePage() {
                     date={field.value}
                     setDate={field.onChange}
                     placeholder="Select your date of birth"
+                    fromDate={hundredYearsAgo}
+                    toDate={today}
                   />
                 )}
               />
@@ -104,9 +161,21 @@ export default function CompleteProfilePage() {
             </div>
 
             <div>
-              <Label htmlFor="profilePictureUrl">Profile Picture URL (Optional)</Label>
-              <Input id="profilePictureUrl" {...register("profilePictureUrl")} placeholder="https://example.com/your-image.png" aria-invalid={errors.profilePictureUrl ? "true" : "false"} />
-              {errors.profilePictureUrl && <p className="text-sm text-destructive mt-1">{errors.profilePictureUrl.message}</p>}
+              <Label htmlFor="profilePicture">Profile Picture (Optional)</Label>
+              <Input
+                id="profilePicture"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                {...register("profilePicture")}
+                aria-invalid={errors.profilePicture ? "true" : "false"}
+                className="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border file:border-input file:bg-background file:text-sm file:font-medium file:text-foreground hover:file:bg-accent hover:file:text-accent-foreground"
+              />
+              {errors.profilePicture && <p className="text-sm text-destructive mt-1">{errors.profilePicture.message as string}</p>}
+              {preview && (
+                <div className="mt-4">
+                  <Image src={preview} alt="Profile preview" width={100} height={100} className="rounded-full object-cover border shadow-sm" />
+                </div>
+              )}
             </div>
 
             <div>

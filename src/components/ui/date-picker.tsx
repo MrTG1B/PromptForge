@@ -1,3 +1,4 @@
+
 // src/components/ui/date-picker.tsx
 "use client";
 
@@ -18,10 +19,19 @@ interface DatePickerProps {
   date: Date | undefined;
   setDate: (date: Date | undefined) => void;
   placeholder?: string;
-  disabled?: boolean;
+  disabled?: boolean; // For the trigger button
+  fromDate?: Date; // For nav limits and dropdown range start
+  toDate?: Date;   // For nav limits and dropdown range end
 }
 
-export function DatePicker({ date, setDate, placeholder = "Pick a date", disabled }: DatePickerProps) {
+export function DatePicker({
+  date,
+  setDate,
+  placeholder = "Pick a date",
+  disabled,
+  fromDate,
+  toDate,
+}: DatePickerProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -43,7 +53,10 @@ export function DatePicker({ date, setDate, placeholder = "Pick a date", disable
           selected={date}
           onSelect={setDate}
           initialFocus
-          disabled={disabled}
+          captionLayout="dropdown-buttons"
+          fromDate={fromDate} // This limits navigation and options in dropdowns
+          toDate={toDate}     // This limits navigation and options in dropdowns
+          // react-day-picker automatically disables dates outside fromDate/toDate when they are set
         />
       </PopoverContent>
     </Popover>
