@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -20,7 +21,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     allowedDevOrigins: [
-      '6000-firebase-studio-1748988988578.cluster-zumahodzirciuujpqvsniawo3o.cloudworkstations.dev',
+      'https://6000-firebase-studio-1748988988578.cluster-zumahodzirciuujpqvsniawo3o.cloudworkstations.dev'
     ],
   },
 };
