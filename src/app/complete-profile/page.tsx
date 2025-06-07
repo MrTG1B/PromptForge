@@ -16,9 +16,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, UserCheck, ArrowRight } from 'lucide-react';
-import { auth, app } from '@/lib/firebase/config'; // Import auth and app
+import { auth } from '@/lib/firebase/config';
 import { updateProfile } from 'firebase/auth';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -42,7 +41,11 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-const storage = getStorage(app);
+interface StoredProfileData {
+  fullName?: string;
+  dateOfBirth?: string; // Store as ISO string
+  mobileNumber?: string;
+}
 
 export default function CompleteProfilePage() {
   const router = useRouter();
@@ -63,14 +66,33 @@ export default function CompleteProfilePage() {
 
   useEffect(() => {
     if (user) {
+      // Pre-fill from Firebase Auth
       setValue('fullName', user.displayName || '');
-      // For DOB and mobile, you'd typically load these from your backend profile data
-      // For now, we only prefill name from Auth
-      if (user.photoURL) {
+
+      // Try to load other data from localStorage
+      const storedDataString = localStorage.getItem(`profileData_${user.uid}`);
+      if (storedDataString) {
+        try {
+          const storedData: StoredProfileData = JSON.parse(storedDataString);
+          if (storedData.fullName && !user.displayName) setValue('fullName', storedData.fullName); // Prefer auth name if available
+          if (storedData.dateOfBirth) setValue('dateOfBirth', new Date(storedData.dateOfBirth));
+          if (storedData.mobileNumber) setValue('mobileNumber', storedData.mobileNumber);
+        } catch (e) {
+          console.error("Failed to parse stored profile data:", e);
+        }
+      }
+      
+      // Load profile picture from localStorage
+      const storedImage = localStorage.getItem(`profilePicture_${user.uid}`);
+      if (storedImage) {
+        setPreview(storedImage);
+      } else if (user.photoURL) { 
+        // Fallback to auth photoURL if no local image, but local takes precedence for this page's preview
         setPreview(user.photoURL);
       }
     }
   }, [user, setValue]);
+
 
   useEffect(() => {
     if (profilePictureFiles && profilePictureFiles.length > 0) {
@@ -82,13 +104,16 @@ export default function CompleteProfilePage() {
         };
         reader.readAsDataURL(file);
       } else {
-        setPreview(user?.photoURL || null); // Revert to original if invalid file chosen
+        // Revert to original if invalid file chosen
+        const storedImage = user ? localStorage.getItem(`profilePicture_${user.uid}`) : null;
+        setPreview(storedImage || user?.photoURL || null);
       }
-    } else if (profilePictureFiles && profilePictureFiles.length === 0) {
-      // File input was cleared
-      setPreview(null); // User intends to remove or not set a picture
+    } else if (profilePictureFiles && profilePictureFiles.length === 0 && preview !== user?.photoURL) {
+       // File input was cleared by user, and current preview isn't the auth.photoURL (meaning it was a local preview)
+       // Set preview to null to indicate removal intention for localStorage, or fallback to auth.photoURL if it exists
+       setPreview(user?.photoURL || null);
     }
-  }, [profilePictureFiles, user?.photoURL]);
+  }, [profilePictureFiles, user, preview]);
 
 
   useEffect(() => {
@@ -105,43 +130,52 @@ export default function CompleteProfilePage() {
       return;
     }
 
-    const { profilePicture, ...otherProfileData } = data;
-    let newPhotoURL: string | null = user.photoURL; // Default to existing photoURL
-
     try {
-      if (profilePicture && profilePicture.length > 0) {
-        const file = profilePicture[0];
-        // Zod validation for type/size should have run, but good to be aware
-        const filePath = `profile-pictures/${user.uid}/${Date.now()}_${file.name}`;
-        const fileRef = storageRef(storage, filePath);
-
-        toast({ title: "Uploading Picture...", description: "Please wait.", variant: "default" });
-        await uploadBytes(fileRef, file);
-        newPhotoURL = await getDownloadURL(fileRef);
-        toast({ title: "Picture Uploaded!", description: "Your new profile picture is saved.", variant: "default" });
-      } else if (preview === null && user.photoURL) {
-        // User cleared the input and there was an existing photoURL, so they intend to remove it.
-        newPhotoURL = null;
-        toast({ title: "Profile Picture Removed", description: "Your profile picture will be removed.", variant: "default"});
-        // Optional: Delete old file from Firebase Storage here if you stored its path previously.
-        // For simplicity, we are only removing it from the Auth profile.
-      }
-
+      // Update Firebase Auth displayName
       await updateProfile(auth.currentUser, {
         displayName: data.fullName,
-        photoURL: newPhotoURL,
+        // photoURL is NOT updated from localStorage image
       });
+      toast({ title: "Display Name Updated!", description: "Your name in Firebase Auth is updated.", variant: "default" });
       
-      // TODO: Save otherProfileData (dateOfBirth, mobileNumber) and potentially newPhotoURL to your backend (e.g., Firestore) here.
-      // Example: await updateUserProfileInFirestore(user.uid, { ...otherProfileData, photoURL: newPhotoURL });
-      console.log("Profile data to save to backend (excluding image which is in Auth profile):", otherProfileData);
-      console.log("Firebase Auth profile updated with displayName and photoURL:", newPhotoURL);
+      // Handle profile picture with localStorage
+      if (profilePictureFiles && profilePictureFiles.length > 0) {
+        const file = profilePictureFiles[0];
+        // Ensure preview has the Data URL from FileReader
+        if (preview && preview.startsWith('data:image')) {
+          localStorage.setItem(`profilePicture_${user.uid}`, preview);
+          toast({ title: "Profile Picture Saved Locally", description: "Your new profile picture is saved in browser storage.", variant: "default"});
+        }
+      } else if (preview === null || (user.photoURL && preview === user.photoURL && (!profilePictureFiles || profilePictureFiles.length === 0) ) ) {
+        // User cleared the input (preview is null), or it's showing auth.photoURL and they didn't select a new file
+        // This means they intend to remove the locally stored picture
+        const localPicExisted = localStorage.getItem(`profilePicture_${user.uid}`);
+        if (localPicExisted){
+            localStorage.removeItem(`profilePicture_${user.uid}`);
+            toast({ title: "Local Profile Picture Removed", description: "Your locally stored profile picture has been removed.", variant: "default"});
+        }
+      }
+
+      // Save other profile data to localStorage
+      const profileDataToStore: StoredProfileData = {
+        fullName: data.fullName,
+        dateOfBirth: data.dateOfBirth ? data.dateOfBirth.toISOString() : undefined,
+        mobileNumber: data.mobileNumber,
+      };
+      localStorage.setItem(`profileData_${user.uid}`, JSON.stringify(profileDataToStore));
+      
+      console.log("Firebase Auth profile updated with displayName:", data.fullName);
+      console.log("Profile data saved to localStorage for user " + user.uid + ":", profileDataToStore);
+      if (preview && preview.startsWith('data:image')) {
+        console.log("Profile picture Data URL (first 50 chars) saved to localStorage: ", preview.substring(0,50));
+      }
+
 
       await new Promise(resolve => setTimeout(resolve, 300)); 
 
       toast({
-        title: "Profile Updated!",
-        description: "Your details have been successfully updated.",
+        title: "Profile Information Updated!",
+        description: "Your details have been successfully updated (name in Firebase, other data locally).",
       });
       router.push('/');
     } catch (error: any) {
@@ -205,7 +239,7 @@ export default function CompleteProfilePage() {
             </div>
 
             <div>
-              <Label htmlFor="profilePicture">Profile Picture (Optional, max 5MB)</Label>
+              <Label htmlFor="profilePicture">Profile Picture (Optional, max 5MB, stored locally)</Label>
               <Input
                 id="profilePicture"
                 type="file"
@@ -238,3 +272,4 @@ export default function CompleteProfilePage() {
     </div>
   );
 }
+
