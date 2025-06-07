@@ -99,47 +99,54 @@ const monthOptions = [
 
 async function getCroppedImageFile(
   image: HTMLImageElement,
-  crop: PixelCrop,
+  crop: PixelCrop, // crop is in screen pixels of the scaled image
   originalFileName: string
 ): Promise<File | null> {
   const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    console.error("Failed to get 2D context from canvas");
+    return null;
+  }
+
   const scaleX = image.naturalWidth / image.width;
   const scaleY = image.naturalHeight / image.height;
-  
-  canvas.width = Math.floor(crop.width * scaleX * (window.devicePixelRatio || 1));
-  canvas.height = Math.floor(crop.height * scaleY * (window.devicePixelRatio || 1));
-  
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
 
-  const pixelRatio = window.devicePixelRatio || 1;
-  ctx.scale(pixelRatio, pixelRatio);
+  const sourceX = crop.x * scaleX;
+  const sourceY = crop.y * scaleY;
+  const sourceWidth = crop.width * scaleX;
+  const sourceHeight = crop.height * scaleY;
+
+  canvas.width = sourceWidth;
+  canvas.height = sourceHeight;
+
   ctx.imageSmoothingQuality = 'high';
-
   ctx.drawImage(
     image,
-    crop.x * scaleX,
-    crop.y * scaleY,
-    crop.width * scaleX,
-    crop.height * scaleY,
-    0,
-    0,
-    crop.width,
-    crop.height
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    0, 
+    0, 
+    canvas.width, 
+    canvas.height 
   );
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          reject(new Error('Canvas is empty'));
+          console.error("Canvas toBlob returned null");
+          reject(new Error('Canvas is empty or an error occurred during blob creation.'));
           return;
         }
         const fileType = ACCEPTED_IMAGE_TYPES.find(type => originalFileName.toLowerCase().endsWith(type.split('/')[1])) || 'image/png';
         resolve(new File([blob], originalFileName, { type: fileType }));
       },
       'image/png', 
-      0.9 
+      0.95 
     );
   });
 }
@@ -197,6 +204,11 @@ export default function CompleteProfilePage() {
 
   useEffect(() => {
     if (!completedCrop || !imgRef.current || !imgSrc) {
+      if (!imgSrc && user?.photoURL) { // If imgSrc is cleared (no new file), reset to existing photoURL
+         setPreview(user.photoURL);
+      } else if (!imgSrc) { // If no new file and no existing photoURL
+         setPreview(null);
+      }
       return;
     }
 
@@ -211,16 +223,19 @@ export default function CompleteProfilePage() {
             setPreview(reader.result as string);
           };
           reader.readAsDataURL(croppedFile);
+        } else {
+           setPreview(null); // If cropping fails, clear preview
         }
       } catch (e) {
         console.error('Error cropping image:', e);
         toast({ title: "Cropping Error", description: "Could not crop image.", variant: "destructive" });
+        setPreview(null);
       }
     };
 
     generateCroppedPreview();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completedCrop, originalFileName]);
+  }, [completedCrop, originalFileName, imgSrc]); // Added imgSrc as dependency
 
 
   useEffect(() => {
@@ -235,11 +250,17 @@ export default function CompleteProfilePage() {
       if (file.size > MAX_FILE_SIZE) {
         toast({ title: "File too large", description: `Max image size is ${MAX_FILE_SIZE / 1024 / 1024}MB.`, variant: "destructive" });
         setValue('profilePicture', undefined); 
+        setImgSrc(null); // Clear imgSrc if file is invalid
+        setCroppedImageFile(null);
+        setCompletedCrop(null);
         return;
       }
       if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
         toast({ title: "Invalid file type", description: `Only JPG and PNG formats are supported.`, variant: "destructive" });
         setValue('profilePicture', undefined); 
+        setImgSrc(null); // Clear imgSrc if file is invalid
+        setCroppedImageFile(null);
+        setCompletedCrop(null);
         return;
       }
       
@@ -248,19 +269,21 @@ export default function CompleteProfilePage() {
       setCrop(undefined); 
       setCompletedCrop(null);
       setCroppedImageFile(null);
+      setPreview(null); // Clear previous preview
       const reader = new FileReader();
       reader.addEventListener('load', () => setImgSrc(reader.result?.toString() || ''));
       reader.readAsDataURL(file);
-    } else {
+    } else { // If file input is cleared by user
       setImgSrc(null);
       setCroppedImageFile(null);
       setCompletedCrop(null);
-      setPreview(user?.photoURL || null); 
+      // setPreview(user?.photoURL || null); // Reset to user's existing photo or null (handled in useEffect for completedCrop)
     }
   };
 
   function onImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
     const { width, height } = e.currentTarget;
+    imgRef.current = e.currentTarget; // Ensure imgRef is set here
     const initialCrop = centerCrop(
       makeAspectCrop(
         {
@@ -275,6 +298,7 @@ export default function CompleteProfilePage() {
       height
     );
     setCrop(initialCrop);
+    setCompletedCrop(null); // Reset completedCrop on new image load to ensure onComplete fires for initial auto-crop
   }
 
 
@@ -366,7 +390,7 @@ export default function CompleteProfilePage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16))] py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex items-start justify-center min-h-[calc(100vh-theme(spacing.16))] py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-lg shadow-xl">
         <CardHeader className="text-center">
           <UserCheck className="mx-auto h-12 w-12 text-primary mb-3" />
@@ -427,11 +451,12 @@ export default function CompleteProfilePage() {
                 id="profilePictureInput"
                 type="file"
                 accept={ACCEPTED_IMAGE_TYPES.join(',')}
-                {...register("profilePicture")} 
+                // {...register("profilePicture")} // We handle file selection manually now
                 onChange={onSelectFile} 
                 className="mt-1 bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/90"
               />
-              {errors.profilePicture && <p className="text-sm text-destructive mt-1">{errors.profilePicture.message as string}</p>}
+              {/* Direct errors for 'profilePicture' might not appear if validation is only for initial selection.
+                  Consider custom error display if needed based on onSelectFile logic. */}
               
               {imgSrc && (
                 <div className="mt-4 p-2 border rounded-md bg-muted/30">
@@ -439,7 +464,10 @@ export default function CompleteProfilePage() {
                   <ReactCrop
                     crop={crop}
                     onChange={c => setCrop(c)}
-                    onComplete={c => setCompletedCrop(c)}
+                    onComplete={c => {
+                        // console.log("ReactCrop onComplete triggered with:", c); // Debug log
+                        setCompletedCrop(c);
+                    }}
                     aspect={1} 
                     circularCrop={true}
                     minWidth={50}
@@ -448,7 +476,7 @@ export default function CompleteProfilePage() {
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      ref={imgRef}
+                      // ref={imgRef} // imgRef is now set in onImageLoad
                       alt="Crop me"
                       src={imgSrc}
                       onLoad={onImageLoad}
