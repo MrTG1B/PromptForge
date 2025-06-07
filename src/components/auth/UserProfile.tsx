@@ -76,7 +76,7 @@ const UserProfile: React.FC = () => {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild className="cursor-pointer">
-          <Link href="/complete-profile">
+          <Link href="/update-profile"> {/* Changed from /complete-profile */}
             <UserCircle2 className="mr-2 h-4 w-4" />
             Update Profile
           </Link>

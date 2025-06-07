@@ -1,5 +1,5 @@
 
-// src/app/complete-profile/page.tsx
+// src/app/update-profile/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -15,15 +15,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowRight, Camera, MailWarning } from 'lucide-react';
+import { Loader2, Save, Camera, KeyRound, Mail, Eye, EyeOff, Check, X, MailWarning, ShieldAlert } from 'lucide-react'; // Changed ArrowRight to Save
 import { auth, db } from '@/lib/firebase/config';
 import { updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { storage as appwriteStorage } from '@/lib/appwrite/config';
 import { ID } from 'appwrite';
 import PhoneNumberInput from '@/components/ui/phone-number-input';
+import { updateUserEmail, updateUserPassword, getFirebaseAuthErrorMessage } from '@/lib/firebase/auth';
 
 import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -38,13 +40,13 @@ const APPWRITE_PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
 const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
 
 if (!APPWRITE_BUCKET_ID || APPWRITE_BUCKET_ID === "your-profile-pictures-bucket-id" || APPWRITE_BUCKET_ID.includes("your-bucket-id")) {
-  console.error(`CRITICAL_CONFIG_ERROR (CompleteProfilePage): NEXT_PUBLIC_APPWRITE_BUCKET_ID is not set correctly or is a placeholder. Current value: "${APPWRITE_BUCKET_ID}". Image uploads will fail.`);
+  console.error(`CRITICAL_CONFIG_ERROR (UpdateProfilePage): NEXT_PUBLIC_APPWRITE_BUCKET_ID is not set correctly or is a placeholder. Current value: "${APPWRITE_BUCKET_ID}". Image uploads will fail.`);
 }
 if (!APPWRITE_PROJECT_ID || APPWRITE_PROJECT_ID === "YOUR_APPWRITE_PROJECT_ID_NOT_SET" || APPWRITE_PROJECT_ID.includes("your-project-id")) {
-  console.error(`CRITICAL_CONFIG_ERROR (CompleteProfilePage): NEXT_PUBLIC_APPWRITE_PROJECT_ID is not set correctly or is a placeholder. Current value: "${APPWRITE_PROJECT_ID}". Image URL construction might fail.`);
+  console.error(`CRITICAL_CONFIG_ERROR (UpdateProfilePage): NEXT_PUBLIC_APPWRITE_PROJECT_ID is not set correctly or is a placeholder. Current value: "${APPWRITE_PROJECT_ID}". Image URL construction might fail.`);
 }
 if (!APPWRITE_ENDPOINT || APPWRITE_ENDPOINT === "YOUR_APPWRITE_ENDPOINT_NOT_SET" || APPWRITE_ENDPOINT.includes("your-appwrite-instance.example.com")) {
-  console.error(`CRITICAL_CONFIG_ERROR (CompleteProfilePage): NEXT_PUBLIC_APPWRITE_ENDPOINT is not set correctly or is a placeholder. Current value: "${APPWRITE_ENDPOINT}". Image URL construction might fail.`);
+  console.error(`CRITICAL_CONFIG_ERROR (UpdateProfilePage): NEXT_PUBLIC_APPWRITE_ENDPOINT is not set correctly or is a placeholder. Current value: "${APPWRITE_ENDPOINT}". Image URL construction might fail.`);
 }
 
 const currentYear = new Date().getFullYear();
@@ -102,6 +104,41 @@ const monthOptions = [
   { value: "9", label: "September" }, { value: "10", label: "October" },
   { value: "11", label: "November" }, { value: "12", label: "December" }
 ];
+
+const passwordValidation = z.string()
+  .min(8, { message: "Password must be at least 8 characters." })
+  .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter." })
+  .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter." })
+  .regex(/[0-9]/, { message: "Password must contain at least one number." })
+  .regex(/[^A-Za-z0-9]/, { message: "Password must contain at least one special character." });
+
+const changeEmailSchema = z.object({
+  newEmail: z.string().email({ message: "Invalid email address." }),
+  currentPasswordForEmail: z.string().min(1, { message: "Current password is required." }),
+});
+type ChangeEmailFormValues = z.infer<typeof changeEmailSchema>;
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required."),
+  newPassword: passwordValidation,
+  confirmNewPassword: passwordValidation,
+}).refine(data => data.newPassword === data.confirmNewPassword, {
+  message: "New passwords don't match.",
+  path: ["confirmNewPassword"],
+}).refine(data => data.currentPassword !== data.newPassword, {
+  message: "New password cannot be the same as the current password.",
+  path: ["newPassword"],
+});
+type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
+
+interface PasswordCriteria {
+  minLength: boolean;
+  uppercase: boolean;
+  lowercase: boolean;
+  number: boolean;
+  specialChar: boolean;
+}
+const initialPasswordCriteria: PasswordCriteria = { minLength: false, uppercase: false, lowercase: false, number: false, specialChar: false };
 
 
 async function getCroppedImageFile(
@@ -164,11 +201,11 @@ async function getCroppedImageFile(
 }
 
 
-export default function CompleteProfilePage() {
+export default function UpdateProfilePage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingProfile, setIsSubmittingProfile] = useState(false);
   
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -179,7 +216,18 @@ export default function CompleteProfilePage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [originalFileName, setOriginalFileName] = useState<string>('profile.png');
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+
   const [isEmailPasswordUser, setIsEmailPasswordUser] = useState(false);
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [showCurrentPasswordForEmail, setShowCurrentPasswordForEmail] = useState(false);
+  const [showCurrentPasswordForPassword, setShowCurrentPasswordForPassword] = useState(false);
+
+  const [newPasswordValue, setNewPasswordValue] = useState('');
+  const [passwordCriteria, setPasswordCriteria] = useState<PasswordCriteria>(initialPasswordCriteria);
+  const [showPasswordCriteriaUI, setShowPasswordCriteriaUI] = useState(false);
 
 
   const { control, register, handleSubmit, formState: { errors }, setValue, watch } = useForm<ProfileFormValues>({
@@ -191,6 +239,14 @@ export default function CompleteProfilePage() {
   const watchedFirstName = watch('firstName');
   const watchedLastName = watch('lastName');
 
+  const { control: emailControl, register: emailRegister, handleSubmit: handleEmailSubmit, formState: { errors: emailErrors }, reset: resetEmailForm } = useForm<ChangeEmailFormValues>({
+    resolver: zodResolver(changeEmailSchema),
+  });
+
+  const { control: passwordControl, register: passwordRegister, handleSubmit: handlePasswordSubmit, formState: { errors: passwordErrors }, watch: watchPasswordForm, reset: resetPasswordForm } = useForm<ChangePasswordFormValues>({
+    resolver: zodResolver(changePasswordSchema),
+  });
+  const watchedNewPassword = watchPasswordForm("newPassword");
 
   useEffect(() => {
     if (user) {
@@ -199,6 +255,18 @@ export default function CompleteProfilePage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (watchedNewPassword !== undefined) {
+      setNewPasswordValue(watchedNewPassword);
+      setPasswordCriteria({
+        minLength: watchedNewPassword.length >= 8,
+        uppercase: /[A-Z]/.test(watchedNewPassword),
+        lowercase: /[a-z]/.test(watchedNewPassword),
+        number: /[0-9]/.test(watchedNewPassword),
+        specialChar: /[^A-Za-z0-9]/.test(watchedNewPassword),
+      });
+    }
+  }, [watchedNewPassword]);
 
  useEffect(() => {
     if (user) {
@@ -221,6 +289,7 @@ export default function CompleteProfilePage() {
               setPreview(user.photoURL);
             }
           } else {
+            // This case might be less common for /update-profile, but good to handle
             if (user.displayName) {
               const nameParts = user.displayName.split(' ');
               setValue('firstName', nameParts[0] || '');
@@ -322,22 +391,19 @@ export default function CompleteProfilePage() {
     else if (!croppedImageFile) setPreview(null); 
   };
 
-  const onSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
-    setIsSubmitting(true);
+  const onProfileSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
+    setIsSubmittingProfile(true);
     if (!user || !auth.currentUser) {
       toast({ title: "Error", description: "User not authenticated.", variant: "destructive" });
-      setIsSubmitting(false);
+      setIsSubmittingProfile(false);
       return;
     }
-    if (isEmailPasswordUser && !user.emailVerified) {
-      toast({ title: "Email Not Verified", description: "Please verify your email address before saving your profile.", variant: "destructive" });
-      setIsSubmitting(false);
-      return;
-    }
+    // Email verification check is more relevant if they just changed email, handled below
+    // if (isEmailPasswordUser && !user.emailVerified) { ... }
 
     if (!APPWRITE_BUCKET_ID || !APPWRITE_PROJECT_ID || !APPWRITE_ENDPOINT || APPWRITE_BUCKET_ID.includes("your-") || APPWRITE_PROJECT_ID.includes("your-") || APPWRITE_ENDPOINT.includes("your-")) {
         toast({ title: "Configuration Error", description: "Appwrite is not configured correctly. Cannot upload image.", variant: "destructive" });
-        setIsSubmitting(false);
+        setIsSubmittingProfile(false);
         return;
     }
 
@@ -355,7 +421,7 @@ export default function CompleteProfilePage() {
       await updateProfile(auth.currentUser, { displayName: newDisplayName, photoURL: newPhotoURL });
 
       const userDocRef = doc(db, "users", user.uid);
-      const profileDataForFirestore: FirestoreProfileData & { updatedAt: any; email: string | null; emailVerified: boolean, profileCompletedAt?: any } = {
+      const profileDataForFirestore: FirestoreProfileData & { updatedAt: any; email: string | null; emailVerified: boolean } = {
         firstName: data.firstName,
         lastName: data.lastName,
         dobDay: data.dobDay,
@@ -363,23 +429,54 @@ export default function CompleteProfilePage() {
         dobYear: data.dobYear,
         mobileNumber: data.mobileNumber,
         photoURL: newPhotoURL,
-        email: user.email,
+        email: user.email, // Use current user.email for consistency
         emailVerified: user.emailVerified,
-        updatedAt: serverTimestamp(),
-        profileCompletedAt: serverTimestamp(), // Mark profile as completed
+        updatedAt: serverTimestamp()
       };
       await setDoc(userDocRef, profileDataForFirestore, { merge: true });
       
-      toast({ title: "Profile Completed!", description: "Your profile has been successfully set up." });
-      router.push('/'); // Redirect to home page after initial completion
+      toast({ title: "Profile Updated!", description: "Your profile details have been successfully updated." });
+      // Optionally, redirect or refresh data
+      // router.push('/'); // Or stay on the page
     } catch (error: any) {
       console.error("Error updating profile:", error);
       toast({ title: "Update Failed", description: error.message || "Could not update profile.", variant: "destructive" });
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingProfile(false);
     }
   };
   
+  const onChangeEmailSubmit: SubmitHandler<ChangeEmailFormValues> = async (data) => {
+    setIsChangingEmail(true);
+    try {
+      await updateUserEmail(data.currentPasswordForEmail, data.newEmail);
+      toast({ title: "Email Update Initiated", description: "A verification email has been sent to your new address. Please verify to complete the change. Your current email remains active until the new one is verified.", duration: 10000 });
+      resetEmailForm();
+      // Important: Firebase automatically handles user.emailVerified to false.
+      // The user.email property in auth.currentUser will only update after the new email is verified via the link.
+      // You may need to refresh the user state or instruct them to re-login after verification to see the change reflected in the UI immediately for user.email.
+      auth.currentUser?.reload(); // Attempt to reload user to get updated emailVerified status
+    } catch (error: any) {
+      toast({ title: "Email Change Failed", description: getFirebaseAuthErrorMessage(error), variant: "destructive" });
+    } finally {
+      setIsChangingEmail(false);
+    }
+  };
+
+  const onChangePasswordSubmit: SubmitHandler<ChangePasswordFormValues> = async (data) => {
+    setIsChangingPassword(true);
+    try {
+      await updateUserPassword(data.currentPassword, data.newPassword);
+      toast({ title: "Password Changed!", description: "Your password has been successfully updated." });
+      resetPasswordForm();
+      setShowPasswordCriteriaUI(false);
+    } catch (error: any) {
+      toast({ title: "Password Change Failed", description: getFirebaseAuthErrorMessage(error), variant: "destructive" });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const triggerFileInput = () => fileInputRef.current?.click();
 
   const getFormInitials = () => {
@@ -390,33 +487,41 @@ export default function CompleteProfilePage() {
     return null;
   };
 
+  const PasswordRequirementItem: React.FC<{ met: boolean; text: string }> = ({ met, text }) => (
+    <li className={`flex items-center text-sm ${met ? 'text-green-600' : 'text-red-600'}`}>
+      {met ? <Check className="mr-2 h-4 w-4" /> : <X className="mr-2 h-4 w-4" />}
+      {text}
+    </li>
+  );
 
   if (authLoading || !user) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  const mainFormDisabled = isSubmitting || (isCropModalOpen && (!completedCrop && !preview)) || (isEmailPasswordUser && user && !user.emailVerified);
+  const mainFormDisabled = isSubmittingProfile || (isCropModalOpen && (!completedCrop && !preview));
+  // Note: Email verification check for main form might be too restrictive here if user just wants to update name while email change is pending.
+  // For now, let's allow main profile updates even if emailVerified is false (e.g. after an email change request).
 
   return (
     <div className="flex items-start justify-center min-h-[calc(100vh-theme(spacing.16))] py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-lg shadow-xl">
         <CardHeader className="text-center">
-          <CardTitle className="font-headline text-3xl">Complete Your Profile</CardTitle>
-          <CardDescription>Welcome! Please fill in your details to get started.</CardDescription>
+          <CardTitle className="font-headline text-3xl">Update Your Profile</CardTitle>
+          <CardDescription>Keep your information current. Email/password changes only for direct signups.</CardDescription>
         </CardHeader>
         <CardContent>
           {isEmailPasswordUser && user && !user.emailVerified && (
             <Alert variant="destructive" className="mb-6">
               <MailWarning className="h-4 w-4" />
-              <AlertTitle>Email Verification Required</AlertTitle>
+              <AlertTitle>Email Verification Pending</AlertTitle>
               <AlertDescription>
-                A verification email was sent to <strong>{user.email || 'your email address'}</strong>. Please click the link in the email to verify your account before saving changes.
-                If you haven&apos;t received it, check your spam folder.
+                Your email address (<strong>{user.email || 'current email'}</strong>) is not verified, or you have initiated an email change and the new address is pending verification.
+                Please check your inbox for a verification link.
               </AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onProfileSubmit)} className="space-y-6">
             <div className="flex justify-center mb-6">
               <button type="button" onClick={triggerFileInput} className="w-32 h-32 rounded-full border-2 border-dashed border-primary flex items-center justify-center cursor-pointer overflow-hidden relative bg-muted hover:bg-muted/80 transition-colors group" aria-label="Upload profile picture">
                 {preview ? (
@@ -496,10 +601,96 @@ export default function CompleteProfilePage() {
             </div>
 
             <Button type="submit" className="w-full" disabled={mainFormDisabled}>
-              {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-              Save and Continue
+              {isSubmittingProfile ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+              Save Profile Changes
             </Button>
           </form>
+
+          {isEmailPasswordUser && (
+            <Accordion type="single" collapsible className="w-full mt-8 pt-6 border-t">
+              <AccordionItem value="change-email">
+                <AccordionTrigger>
+                  <div className="flex items-center gap-2"> <Mail className="h-5 w-5 text-primary" /> Change Email Address </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <form onSubmit={handleEmailSubmit(onChangeEmailSubmit)} className="space-y-4 pt-2">
+                    <div>
+                      <Label htmlFor="newEmail">New Email Address</Label>
+                      <Input id="newEmail" type="email" {...emailRegister("newEmail")} placeholder="new.email@example.com" aria-invalid={emailErrors.newEmail ? "true" : "false"} />
+                      {emailErrors.newEmail && <p className="text-sm text-destructive mt-1">{emailErrors.newEmail.message}</p>}
+                    </div>
+                    <div>
+                      <Label htmlFor="currentPasswordForEmail">Current Password (to confirm change)</Label>
+                      <div className="relative">
+                        <Input id="currentPasswordForEmail" type={showCurrentPasswordForEmail ? "text" : "password"} {...emailRegister("currentPasswordForEmail")} placeholder="••••••••" aria-invalid={emailErrors.currentPasswordForEmail ? "true" : "false"} className="pr-10" />
+                        <Button type="button" variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 px-0" onClick={() => setShowCurrentPasswordForEmail(!showCurrentPasswordForEmail)}>
+                          {showCurrentPasswordForEmail ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {emailErrors.currentPasswordForEmail && <p className="text-sm text-destructive mt-1">{emailErrors.currentPasswordForEmail.message}</p>}
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isChangingEmail}>
+                      {isChangingEmail ? <Loader2 className="animate-spin mr-2" /> : <Mail className="mr-2 h-4 w-4" />}
+                      Request Email Change
+                    </Button>
+                  </form>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="change-password">
+                <AccordionTrigger>
+                  <div className="flex items-center gap-2"> <KeyRound className="h-5 w-5 text-primary" /> Change Password </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <form onSubmit={handlePasswordSubmit(onChangePasswordSubmit)} className="space-y-4 pt-2">
+                    <div>
+                      <Label htmlFor="currentPassword">Current Password</Label>
+                       <div className="relative">
+                        <Input id="currentPassword" type={showCurrentPasswordForPassword ? "text" : "password"} {...passwordRegister("currentPassword")} placeholder="••••••••" aria-invalid={passwordErrors.currentPassword ? "true" : "false"} className="pr-10" />
+                        <Button type="button" variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 px-0" onClick={() => setShowCurrentPasswordForPassword(!showCurrentPasswordForPassword)}>
+                            {showCurrentPasswordForPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                       </div>
+                      {passwordErrors.currentPassword && <p className="text-sm text-destructive mt-1">{passwordErrors.currentPassword.message}</p>}
+                    </div>
+                    <div>
+                      <Label htmlFor="newPassword">New Password</Label>
+                      <div className="relative">
+                        <Input id="newPassword" type={showNewPassword ? "text" : "password"} {...passwordRegister("newPassword")} placeholder="Enter new password" aria-invalid={passwordErrors.newPassword ? "true" : "false"} className="pr-10" onFocus={() => setShowPasswordCriteriaUI(true)} />
+                        <Button type="button" variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 px-0" onClick={() => setShowNewPassword(!showNewPassword)}>
+                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {passwordErrors.newPassword && <p className="text-sm text-destructive mt-1">{passwordErrors.newPassword.message}</p>}
+                       {showPasswordCriteriaUI && (
+                        <ul className="mt-2 space-y-1 p-3 bg-muted/50 rounded-md">
+                          <PasswordRequirementItem met={passwordCriteria.minLength} text="At least 8 characters" />
+                          <PasswordRequirementItem met={passwordCriteria.uppercase} text="At least one uppercase letter (A-Z)" />
+                          <PasswordRequirementItem met={passwordCriteria.lowercase} text="At least one lowercase letter (a-z)" />
+                          <PasswordRequirementItem met={passwordCriteria.number} text="At least one number (0-9)" />
+                          <PasswordRequirementItem met={passwordCriteria.specialChar} text="At least one special character (e.g., !@#$%)" />
+                        </ul>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
+                      <div className="relative">
+                        <Input id="confirmNewPassword" type={showConfirmNewPassword ? "text" : "password"} {...passwordRegister("confirmNewPassword")} placeholder="Re-enter new password" aria-invalid={passwordErrors.confirmNewPassword ? "true" : "false"} className="pr-10" />
+                        <Button type="button" variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 px-0" onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}>
+                            {showConfirmNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {passwordErrors.confirmNewPassword && <p className="text-sm text-destructive mt-1">{passwordErrors.confirmNewPassword.message}</p>}
+                    </div>
+                     <Button type="submit" className="w-full" disabled={isChangingPassword}>
+                       {isChangingPassword ? <Loader2 className="animate-spin mr-2" /> : <KeyRound className="mr-2 h-4 w-4" />}
+                      Change Password
+                    </Button>
+                  </form>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
         </CardContent>
          <CardFooter className="flex justify-center text-sm text-muted-foreground pt-4">
           <Link href="/" passHref>
@@ -512,3 +703,4 @@ export default function CompleteProfilePage() {
     </div>
   );
 }
+
