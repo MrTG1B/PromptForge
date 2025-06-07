@@ -5,15 +5,24 @@ import Script from 'next/script'; // Import next/script
 import './globals.css';
 import { Analytics } from "@vercel/analytics/next";
 import GlobalProviders from '@/components/providers/GlobalProviders';
-import { ThemeProvider } from 'next-themes'; // Added ThemeProvider
+import { ThemeProvider } from 'next-themes';
 
-const siteUrl = 'https://prompt-forge-blond.vercel.app';
-const facebookAppId = '1663861460968287'; // This is used for FB.init
+// Use environment variable for site URL
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://prompt-forge-blond.vercel.app'; // Fallback if not set
+const facebookAppId = '1663861460968287';
 const recaptchaSiteKeyFromEnv = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 
+// Construct OG image URL using siteUrl
 const ogImageUrl = `${siteUrl}/promptforge-og.png`;
 
-// More robust check for the reCAPTCHA site key
+if (!process.env.NEXT_PUBLIC_SITE_URL) {
+  console.warn(
+    "WARNING: NEXT_PUBLIC_SITE_URL environment variable is not set. " +
+    "Email verification links and metadata URLs might not work correctly. " +
+    "Please set it in your .env.local file for development and in your Vercel project settings for deployment."
+  );
+}
+
 if (!recaptchaSiteKeyFromEnv || recaptchaSiteKeyFromEnv === "your_actual_recaptcha_site_key_here") {
   console.error(
     "SERVER-SIDE CRITICAL WARNING: NEXT_PUBLIC_RECAPTCHA_SITE_KEY is not configured or is still the placeholder value 'your_actual_recaptcha_site_key_here'. " +
@@ -26,11 +35,11 @@ if (!recaptchaSiteKeyFromEnv || recaptchaSiteKeyFromEnv === "your_actual_recaptc
 
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(siteUrl), // Use siteUrl from env
   title: 'PromptForge',
   description: 'AI-powered prompt generation and refinement tool.',
   icons: {
-    icon: '/promptforge-og.png', // Relative path
+    icon: '/promptforge-og.png',
   },
   openGraph: {
     title: 'PromptForge',
@@ -39,7 +48,7 @@ export const metadata: Metadata = {
     siteName: 'PromptForge',
     images: [
       {
-        url: ogImageUrl, // Absolute URL
+        url: ogImageUrl, // Use constructed ogImageUrl
         width: 1200,
         height: 630,
         alt: 'PromptForge Social Sharing Image',
@@ -54,7 +63,7 @@ export const metadata: Metadata = {
     description: 'AI-powered prompt generation and refinement tool.',
     images: [
       {
-        url: ogImageUrl, // Absolute URL
+        url: ogImageUrl, // Use constructed ogImageUrl
         alt: 'PromptForge Twitter Image',
       }
     ],
@@ -69,11 +78,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Pass the key from environment, or a specific string if it's undefined/empty
   const keyToPassToProvider = recaptchaSiteKeyFromEnv || "PLACEHOLDER_SITE_KEY_FROM_LAYOUT";
 
   return (
-    <html lang="en" suppressHydrationWarning> {/* Added suppressHydrationWarning for next-themes */}
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

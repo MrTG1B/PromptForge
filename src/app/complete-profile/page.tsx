@@ -12,17 +12,20 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowRight, Camera } from 'lucide-react';
-import { auth, db } from '@/lib/firebase/config'; // Import db from Firebase config
+import { Loader2, ArrowRight, Camera, KeyRound, Mail, Eye, EyeOff, Check, X, MailWarning, ShieldAlert } from 'lucide-react';
+import { auth, db } from '@/lib/firebase/config';
 import { updateProfile } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'; // Firestore functions
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { storage as appwriteStorage } from '@/lib/appwrite/config';
 import { ID } from 'appwrite';
 import PhoneNumberInput from '@/components/ui/phone-number-input';
+import { updateUserEmail, updateUserPassword, getFirebaseAuthErrorMessage } from '@/lib/firebase/auth';
 
 import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -82,7 +85,6 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-// Interface for data fetched from Firestore (subset of ProfileFormValues)
 interface FirestoreProfileData {
   firstName?: string;
   lastName?: string;
@@ -90,9 +92,8 @@ interface FirestoreProfileData {
   dobMonth?: string;
   dobYear?: string;
   mobileNumber?: string;
-  photoURL?: string | null; // photoURL from Appwrite is also stored here
+  photoURL?: string | null;
 }
-
 
 const monthOptions = [
   { value: "1", label: "January" }, { value: "2", label: "February" },
@@ -102,6 +103,42 @@ const monthOptions = [
   { value: "9", label: "September" }, { value: "10", label: "October" },
   { value: "11", label: "November" }, { value: "12", label: "December" }
 ];
+
+const passwordValidation = z.string()
+  .min(8, { message: "Password must be at least 8 characters." })
+  .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter." })
+  .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter." })
+  .regex(/[0-9]/, { message: "Password must contain at least one number." })
+  .regex(/[^A-Za-z0-9]/, { message: "Password must contain at least one special character." });
+
+const changeEmailSchema = z.object({
+  newEmail: z.string().email({ message: "Invalid email address." }),
+  currentPasswordForEmail: z.string().min(1, { message: "Current password is required." }),
+});
+type ChangeEmailFormValues = z.infer<typeof changeEmailSchema>;
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required."),
+  newPassword: passwordValidation,
+  confirmNewPassword: passwordValidation,
+}).refine(data => data.newPassword === data.confirmNewPassword, {
+  message: "New passwords don't match.",
+  path: ["confirmNewPassword"],
+}).refine(data => data.currentPassword !== data.newPassword, {
+  message: "New password cannot be the same as the current password.",
+  path: ["newPassword"],
+});
+type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
+
+interface PasswordCriteria {
+  minLength: boolean;
+  uppercase: boolean;
+  lowercase: boolean;
+  number: boolean;
+  specialChar: boolean;
+}
+const initialPasswordCriteria: PasswordCriteria = { minLength: false, uppercase: false, lowercase: false, number: false, specialChar: false };
+
 
 async function getCroppedImageFile(
   image: HTMLImageElement,
@@ -179,21 +216,56 @@ export default function CompleteProfilePage() {
   const [originalFileName, setOriginalFileName] = useState<string>('profile.png');
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
 
+  const [isEmailPasswordUser, setIsEmailPasswordUser] = useState(false);
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [showCurrentPasswordForEmail, setShowCurrentPasswordForEmail] = useState(false);
+  const [showCurrentPasswordForPassword, setShowCurrentPasswordForPassword] = useState(false);
+
+  const [newPasswordValue, setNewPasswordValue] = useState('');
+  const [passwordCriteria, setPasswordCriteria] = useState<PasswordCriteria>(initialPasswordCriteria);
+  const [showPasswordCriteriaUI, setShowPasswordCriteriaUI] = useState(false);
+
 
   const { control, register, handleSubmit, formState: { errors }, setValue, watch } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      dobDay: '',
-      dobMonth: '',
-      dobYear: '',
-      mobileNumber: '',
+      firstName: '', lastName: '', dobDay: '', dobMonth: '', dobYear: '', mobileNumber: '',
     }
   });
-
   const watchedFirstName = watch('firstName');
   const watchedLastName = watch('lastName');
+
+  const { control: emailControl, register: emailRegister, handleSubmit: handleEmailSubmit, formState: { errors: emailErrors }, reset: resetEmailForm } = useForm<ChangeEmailFormValues>({
+    resolver: zodResolver(changeEmailSchema),
+  });
+
+  const { control: passwordControl, register: passwordRegister, handleSubmit: handlePasswordSubmit, formState: { errors: passwordErrors }, watch: watchPasswordForm, reset: resetPasswordForm } = useForm<ChangePasswordFormValues>({
+    resolver: zodResolver(changePasswordSchema),
+  });
+  const watchedNewPassword = watchPasswordForm("newPassword");
+
+  useEffect(() => {
+    if (user) {
+      const providerIds = user.providerData.map(p => p.providerId);
+      setIsEmailPasswordUser(providerIds.includes('password'));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (watchedNewPassword !== undefined) {
+      setNewPasswordValue(watchedNewPassword);
+      setPasswordCriteria({
+        minLength: watchedNewPassword.length >= 8,
+        uppercase: /[A-Z]/.test(watchedNewPassword),
+        lowercase: /[a-z]/.test(watchedNewPassword),
+        number: /[0-9]/.test(watchedNewPassword),
+        specialChar: /[^A-Za-z0-9]/.test(watchedNewPassword),
+      });
+    }
+  }, [watchedNewPassword]);
 
  useEffect(() => {
     if (user) {
@@ -203,48 +275,35 @@ export default function CompleteProfilePage() {
           const docSnap = await getDoc(userDocRef);
           if (docSnap.exists()) {
             const firestoreData = docSnap.data() as FirestoreProfileData;
-            setValue('firstName', firestoreData.firstName || '');
-            setValue('lastName', firestoreData.lastName || '');
+            setValue('firstName', firestoreData.firstName || user.displayName?.split(' ')[0] || '');
+            setValue('lastName', firestoreData.lastName || user.displayName?.split(' ').slice(1).join(' ') || '');
             setValue('dobDay', firestoreData.dobDay || '');
             setValue('dobMonth', firestoreData.dobMonth || '');
             setValue('dobYear', firestoreData.dobYear || '');
             setValue('mobileNumber', firestoreData.mobileNumber || '');
             
-            // Set preview from Firestore photoURL if available and no other preview source
             if (firestoreData.photoURL && !imgSrc && !croppedImageFile) {
               setPreview(firestoreData.photoURL);
             } else if (user.photoURL && !imgSrc && !croppedImageFile && !firestoreData.photoURL) {
-              // Fallback to auth photoURL if Firestore doesn't have one
               setPreview(user.photoURL);
             }
-
           } else {
-            // No Firestore data, try to prefill from auth if available
             if (user.displayName) {
               const nameParts = user.displayName.split(' ');
               setValue('firstName', nameParts[0] || '');
-              if (nameParts.length > 1) {
-                setValue('lastName', nameParts.slice(1).join(' ') || '');
-              }
+              if (nameParts.length > 1) setValue('lastName', nameParts.slice(1).join(' ') || '');
             }
-            if (user.photoURL && !imgSrc && !croppedImageFile) {
-              setPreview(user.photoURL);
-            }
+            if (user.photoURL && !imgSrc && !croppedImageFile) setPreview(user.photoURL);
           }
         } catch (error) {
           console.error("Error fetching profile data from Firestore:", error);
           toast({ title: "Error", description: "Could not fetch profile data.", variant: "destructive" });
-          // Fallback to auth data if Firestore fetch fails
             if (user.displayName) {
               const nameParts = user.displayName.split(' ');
               setValue('firstName', nameParts[0] || '');
-              if (nameParts.length > 1) {
-                setValue('lastName', nameParts.slice(1).join(' ') || '');
-              }
+              if (nameParts.length > 1) setValue('lastName', nameParts.slice(1).join(' ') || '');
             }
-            if (user.photoURL && !imgSrc && !croppedImageFile) {
-              setPreview(user.photoURL);
-            }
+            if (user.photoURL && !imgSrc && !croppedImageFile) setPreview(user.photoURL);
         }
       };
       fetchProfileData();
@@ -307,11 +366,9 @@ export default function CompleteProfilePage() {
       if (croppedFile) {
         setCroppedImageFile(croppedFile);
         const reader = new FileReader();
-        reader.onloadend = () => {
-          setPreview(reader.result as string);
-        };
+        reader.onloadend = () => setPreview(reader.result as string);
         reader.readAsDataURL(croppedFile);
-        toast({ title: "Crop Saved", description: "Image crop applied and preview updated.", variant: "default" });
+        toast({ title: "Crop Saved", description: "Image crop applied and preview updated." });
       }
     } catch (e) {
       console.error('Error saving cropped image:', e);
@@ -326,15 +383,10 @@ export default function CompleteProfilePage() {
     setImgSrc(null); 
     setCrop(undefined);
     setCompletedCrop(null);
-    // Do not reset croppedImageFile here, as it might hold the previously saved crop
     setIsCropModalOpen(false);
     if (fileInputRef.current) fileInputRef.current.value = ""; 
-    
-    if (user && user.photoURL && !croppedImageFile) {
-        setPreview(user.photoURL);
-    } else if (!croppedImageFile) {
-        setPreview(null); 
-    }
+    if (user && user.photoURL && !croppedImageFile) setPreview(user.photoURL);
+    else if (!croppedImageFile) setPreview(null); 
   };
 
   const onSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
@@ -344,172 +396,151 @@ export default function CompleteProfilePage() {
       setIsSubmitting(false);
       return;
     }
+    if (isEmailPasswordUser && !user.emailVerified) {
+      toast({ title: "Email Not Verified", description: "Please verify your email address before saving your profile.", variant: "destructive" });
+      setIsSubmitting(false);
+      return;
+    }
 
     if (!APPWRITE_BUCKET_ID || !APPWRITE_PROJECT_ID || !APPWRITE_ENDPOINT || APPWRITE_BUCKET_ID.includes("your-") || APPWRITE_PROJECT_ID.includes("your-") || APPWRITE_ENDPOINT.includes("your-")) {
-        toast({ title: "Configuration Error", description: "Appwrite is not configured correctly in environment variables. Cannot upload image.", variant: "destructive" });
-        console.error("Appwrite onSubmit Configuration Error: One or more Appwrite ENV VARS are missing or placeholders.");
+        toast({ title: "Configuration Error", description: "Appwrite is not configured correctly. Cannot upload image.", variant: "destructive" });
         setIsSubmitting(false);
         return;
     }
 
-    let newPhotoURL = user.photoURL; 
+    let newPhotoURL = preview || user.photoURL; 
     const newDisplayName = `${data.firstName} ${data.lastName || ''}`.trim();
 
     try {
       if (croppedImageFile) { 
-        try {
-          toast({ title: "Uploading Profile Picture...", description: "Please wait while your image is uploaded.", variant: "default" });
-          
-          const appwriteFile = await appwriteStorage.createFile(
-            APPWRITE_BUCKET_ID,
-            ID.unique(),
-            croppedImageFile 
-          );
-          
-          newPhotoURL = `${APPWRITE_ENDPOINT}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${appwriteFile.$id}/view?project=${APPWRITE_PROJECT_ID}`;
-          toast({ title: "Image Uploaded!", description: "Profile picture successfully uploaded.", variant: "default"});
-        } catch (uploadError: any) {
-          console.error("Appwrite upload error:", uploadError);
-          toast({ title: "Upload Failed", description: `Could not upload image: ${uploadError.message || 'Unknown error.'}`, variant: "destructive" });
-          setIsSubmitting(false);
-          return;
-        }
+        toast({ title: "Uploading Profile Picture...", description: "Please wait.", variant: "default" });
+        const appwriteFile = await appwriteStorage.createFile(APPWRITE_BUCKET_ID, ID.unique(), croppedImageFile);
+        newPhotoURL = `${APPWRITE_ENDPOINT}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${appwriteFile.$id}/view?project=${APPWRITE_PROJECT_ID}`;
+        toast({ title: "Image Uploaded!", description: "Profile picture successfully uploaded."});
       }
 
-      await updateProfile(auth.currentUser, {
-        displayName: newDisplayName,
-        photoURL: newPhotoURL, 
-      });
+      await updateProfile(auth.currentUser, { displayName: newDisplayName, photoURL: newPhotoURL });
 
-      // Save/update profile data in Firestore
       const userDocRef = doc(db, "users", user.uid);
-      const profileDataForFirestore: FirestoreProfileData & { updatedAt: any } = {
+      const profileDataForFirestore: FirestoreProfileData & { updatedAt: any; email: string | null; emailVerified: boolean } = {
         firstName: data.firstName,
         lastName: data.lastName,
         dobDay: data.dobDay,
         dobMonth: data.dobMonth,
         dobYear: data.dobYear,
         mobileNumber: data.mobileNumber,
-        photoURL: newPhotoURL, // Store the Appwrite URL in Firestore as well
-        updatedAt: serverTimestamp() // Keep track of last update
+        photoURL: newPhotoURL,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        updatedAt: serverTimestamp()
       };
       await setDoc(userDocRef, profileDataForFirestore, { merge: true });
       
-      toast({
-        title: "Profile Updated!",
-        description: "Your profile has been successfully updated.",
-      });
+      toast({ title: "Profile Updated!", description: "Your profile has been successfully updated." });
       router.push('/');
     } catch (error: any) {
       console.error("Error updating profile:", error);
-      toast({
-        title: "Update Failed",
-        description: error.message || "Could not update profile. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Update Failed", description: error.message || "Could not update profile.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   };
   
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
+  const onChangeEmailSubmit: SubmitHandler<ChangeEmailFormValues> = async (data) => {
+    setIsChangingEmail(true);
+    try {
+      await updateUserEmail(data.currentPasswordForEmail, data.newEmail);
+      toast({ title: "Email Update Initiated", description: "A verification email has been sent to your new address. Please verify to complete the change.", duration: 7000 });
+      resetEmailForm();
+      // Optionally, refresh user data or UI here, or sign out to force re-login with new email.
+      // For simplicity, we'll let Firebase handle the email change and user will see it on next login or refresh.
+      auth.currentUser?.reload(); // Attempt to reload user data
+    } catch (error: any) {
+      toast({ title: "Email Change Failed", description: getFirebaseAuthErrorMessage(error), variant: "destructive" });
+    } finally {
+      setIsChangingEmail(false);
+    }
   };
+
+  const onChangePasswordSubmit: SubmitHandler<ChangePasswordFormValues> = async (data) => {
+    setIsChangingPassword(true);
+    try {
+      await updateUserPassword(data.currentPassword, data.newPassword);
+      toast({ title: "Password Changed!", description: "Your password has been successfully updated." });
+      resetPasswordForm();
+      setShowPasswordCriteriaUI(false);
+    } catch (error: any) {
+      toast({ title: "Password Change Failed", description: getFirebaseAuthErrorMessage(error), variant: "destructive" });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const triggerFileInput = () => fileInputRef.current?.click();
 
   const getFormInitials = () => {
     const fName = watchedFirstName || '';
     const lName = watchedLastName || '';
-    if (fName && lName) {
-      return `${fName.charAt(0)}${lName.charAt(0)}`.toUpperCase();
-    } else if (fName) {
-      return fName.charAt(0).toUpperCase();
-    }
+    if (fName && lName) return `${fName.charAt(0)}${lName.charAt(0)}`.toUpperCase();
+    if (fName) return fName.charAt(0).toUpperCase();
     return null;
   };
 
+  const PasswordRequirementItem: React.FC<{ met: boolean; text: string }> = ({ met, text }) => (
+    <li className={`flex items-center text-sm ${met ? 'text-green-600' : 'text-red-600'}`}>
+      {met ? <Check className="mr-2 h-4 w-4" /> : <X className="mr-2 h-4 w-4" />}
+      {text}
+    </li>
+  );
+
   if (authLoading || !user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
+
+  const mainFormDisabled = isSubmitting || (isCropModalOpen && (!completedCrop && !preview)) || (isEmailPasswordUser && user && !user.emailVerified);
 
   return (
     <div className="flex items-start justify-center min-h-[calc(100vh-theme(spacing.16))] py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-lg shadow-xl">
         <CardHeader className="text-center">
-          <CardTitle className="font-headline text-3xl">Complete Your Profile</CardTitle>
-          <CardDescription>
-            Personalize your experience by adding and cropping a profile photo.
-          </CardDescription>
+          <CardTitle className="font-headline text-3xl">Update Your Profile</CardTitle>
+          <CardDescription>Keep your information current. Email/password changes only for direct signups.</CardDescription>
         </CardHeader>
         <CardContent>
+          {isEmailPasswordUser && user && !user.emailVerified && (
+            <Alert variant="destructive" className="mb-6">
+              <MailWarning className="h-4 w-4" />
+              <AlertTitle>Email Verification Required</AlertTitle>
+              <AlertDescription>
+                A verification email was sent to <strong>{user.email}</strong>. Please click the link in the email to verify your account before saving changes.
+                If you haven&apos;t received it, check your spam folder.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            
             <div className="flex justify-center mb-6">
-              <button
-                type="button"
-                onClick={triggerFileInput}
-                className="w-32 h-32 rounded-full border-2 border-dashed border-primary flex items-center justify-center cursor-pointer overflow-hidden relative bg-muted hover:bg-muted/80 transition-colors group"
-                aria-label="Upload profile picture"
-              >
+              <button type="button" onClick={triggerFileInput} className="w-32 h-32 rounded-full border-2 border-dashed border-primary flex items-center justify-center cursor-pointer overflow-hidden relative bg-muted hover:bg-muted/80 transition-colors group" aria-label="Upload profile picture">
                 {preview ? (
-                  <Image
-                    src={preview} 
-                    alt="Profile preview"
-                    fill
-                    className="object-cover"
-                    key={preview} 
-                    unoptimized={preview.startsWith('blob:') || preview.startsWith('data:')}
-                  />
+                  <Image src={preview} alt="Profile preview" fill className="object-cover" key={preview} unoptimized={preview.startsWith('blob:') || preview.startsWith('data:')} />
                 ) : (
                   (() => {
                     const formInitials = getFormInitials();
-                    if (formInitials) {
-                      return <span className="text-4xl font-semibold text-primary">{formInitials}</span>;
-                    }
+                    if (formInitials) return <span className="text-4xl font-semibold text-primary">{formInitials}</span>;
                     return <Camera className="w-12 h-12 text-primary/70 group-hover:text-primary transition-colors" />;
                   })()
                 )}
               </button>
-              <Input
-                id="profilePictureInput"
-                type="file"
-                accept={ACCEPTED_IMAGE_TYPES.join(',')}
-                className="hidden"
-                ref={fileInputRef}
-                onChange={onSelectFile}
-              />
+              <Input id="profilePictureInput" type="file" accept={ACCEPTED_IMAGE_TYPES.join(',')} className="hidden" ref={fileInputRef} onChange={onSelectFile} />
             </div>
             
-            <Dialog open={isCropModalOpen} onOpenChange={(isOpen) => {
-                if (!isOpen) handleCancelCrop();
-                setIsCropModalOpen(isOpen);
-             }}>
+            <Dialog open={isCropModalOpen} onOpenChange={(isOpen) => { if (!isOpen) handleCancelCrop(); setIsCropModalOpen(isOpen); }}>
               <DialogContent className="sm:max-w-[425px] md:max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>Crop Your Image</DialogTitle>
-                </DialogHeader>
+                <DialogHeader><DialogTitle>Crop Your Image</DialogTitle></DialogHeader>
                 {imgSrc && (
                   <div className="mt-4 p-2 border rounded-md bg-muted/30 max-h-[60vh] overflow-y-auto">
-                    <ReactCrop
-                      crop={crop}
-                      onChange={c => setCrop(c)}
-                      onComplete={c => setCompletedCrop(c)}
-                      aspect={1} 
-                      circularCrop={true}
-                      minWidth={50}
-                      minHeight={50}
-                      ruleOfThirds
-                    >
-                      <img
-                        alt="Crop me"
-                        src={imgSrc}
-                        ref={imgRef}
-                        onLoad={onImageLoad}
-                        style={{ maxHeight: '50vh', display: 'block', margin: 'auto', objectFit: 'contain' }}
-                      />
+                    <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)} aspect={1} circularCrop minWidth={50} minHeight={50} ruleOfThirds>
+                      <img alt="Crop me" src={imgSrc} ref={imgRef} onLoad={onImageLoad} style={{ maxHeight: '50vh', display: 'block', margin: 'auto', objectFit: 'contain' }} />
                     </ReactCrop>
                   </div>
                 )}
@@ -543,22 +574,12 @@ export default function CompleteProfilePage() {
                 </div>
                 <div>
                   <Label htmlFor="dobMonth" className="sr-only">Month</Label>
-                  <Controller
-                    name="dobMonth"
-                    control={control}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value || ''} disabled={field.disabled}>
-                        <SelectTrigger id="dobMonth" aria-label="Month" aria-invalid={errors.dobMonth ? "true" : "false"}>
-                          <SelectValue placeholder="Month" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {monthOptions.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
+                  <Controller name="dobMonth" control={control} render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value || ''} disabled={field.disabled}>
+                      <SelectTrigger id="dobMonth" aria-label="Month" aria-invalid={errors.dobMonth ? "true" : "false"}><SelectValue placeholder="Month" /></SelectTrigger>
+                      <SelectContent>{monthOptions.map(opt => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}</SelectContent>
+                    </Select>
+                  )} />
                    {errors.dobMonth && <p className="text-sm text-destructive mt-1">{errors.dobMonth.message}</p>}
                 </div>
                 <div>
@@ -567,36 +588,116 @@ export default function CompleteProfilePage() {
                   {errors.dobYear && <p className="text-sm text-destructive mt-1">{errors.dobYear.message}</p>}
                 </div>
               </div>
-              {/* This is for the date validation error from .refine */}
-              {errors.root?.message && !errors.dobDay && !errors.dobMonth && !errors.dobYear && (
-                <p className="text-sm text-destructive mt-1 col-span-3">{errors.root.message}</p>
-              )}
+              {errors.root?.message && !errors.dobDay && !errors.dobMonth && !errors.dobYear && (<p className="text-sm text-destructive mt-1 col-span-3">{errors.root.message}</p>)}
             </div>
 
             <div>
               <Label htmlFor="mobileNumber">Mobile Number</Label>
-              <Controller
-                name="mobileNumber"
-                control={control}
-                defaultValue=""
-                render={({ field }) => (
-                  <PhoneNumberInput
-                    value={field.value}
-                    onChange={field.onChange}
-                    defaultCountry="IN" 
-                    disabled={field.disabled}
-                  />
-                )}
-              />
+              <Controller name="mobileNumber" control={control} defaultValue="" render={({ field }) => (<PhoneNumberInput value={field.value} onChange={field.onChange} defaultCountry="IN" disabled={field.disabled} />)} />
               {errors.mobileNumber && <p className="text-sm text-destructive mt-1">{errors.mobileNumber.message}</p>}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting || (isCropModalOpen && (!completedCrop && !preview) ) }>
+            <Button type="submit" className="w-full" disabled={mainFormDisabled}>
               {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <ArrowRight className="mr-2 h-4 w-4" />}
               Save and Continue
             </Button>
           </form>
+
+          {isEmailPasswordUser && (
+            <Accordion type="single" collapsible className="w-full mt-8 pt-6 border-t">
+              <AccordionItem value="change-email">
+                <AccordionTrigger>
+                  <div className="flex items-center gap-2"> <Mail className="h-5 w-5 text-primary" /> Change Email </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <form onSubmit={handleEmailSubmit(onChangeEmailSubmit)} className="space-y-4 pt-2">
+                    <div>
+                      <Label htmlFor="newEmail">New Email Address</Label>
+                      <Input id="newEmail" type="email" {...emailRegister("newEmail")} placeholder="new.email@example.com" aria-invalid={emailErrors.newEmail ? "true" : "false"} />
+                      {emailErrors.newEmail && <p className="text-sm text-destructive mt-1">{emailErrors.newEmail.message}</p>}
+                    </div>
+                    <div>
+                      <Label htmlFor="currentPasswordForEmail">Current Password</Label>
+                      <div className="relative">
+                        <Input id="currentPasswordForEmail" type={showCurrentPasswordForEmail ? "text" : "password"} {...emailRegister("currentPasswordForEmail")} placeholder="••••••••" aria-invalid={emailErrors.currentPasswordForEmail ? "true" : "false"} className="pr-10" />
+                        <Button type="button" variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 px-0" onClick={() => setShowCurrentPasswordForEmail(!showCurrentPasswordForEmail)}>
+                          {showCurrentPasswordForEmail ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {emailErrors.currentPasswordForEmail && <p className="text-sm text-destructive mt-1">{emailErrors.currentPasswordForEmail.message}</p>}
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isChangingEmail || !user?.emailVerified}>
+                      {isChangingEmail ? <Loader2 className="animate-spin mr-2" /> : <Mail className="mr-2 h-4 w-4" />}
+                      Save New Email
+                    </Button>
+                    {!user?.emailVerified && <p className="text-xs text-destructive text-center mt-1">Verify your current email to change it.</p>}
+                  </form>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="change-password">
+                <AccordionTrigger>
+                  <div className="flex items-center gap-2"> <KeyRound className="h-5 w-5 text-primary" /> Change Password </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <form onSubmit={handlePasswordSubmit(onChangePasswordSubmit)} className="space-y-4 pt-2">
+                    <div>
+                      <Label htmlFor="currentPassword">Current Password</Label>
+                       <div className="relative">
+                        <Input id="currentPassword" type={showCurrentPasswordForPassword ? "text" : "password"} {...passwordRegister("currentPassword")} placeholder="••••••••" aria-invalid={passwordErrors.currentPassword ? "true" : "false"} className="pr-10" />
+                        <Button type="button" variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 px-0" onClick={() => setShowCurrentPasswordForPassword(!showCurrentPasswordForPassword)}>
+                            {showCurrentPasswordForPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                       </div>
+                      {passwordErrors.currentPassword && <p className="text-sm text-destructive mt-1">{passwordErrors.currentPassword.message}</p>}
+                    </div>
+                    <div>
+                      <Label htmlFor="newPassword">New Password</Label>
+                      <div className="relative">
+                        <Input id="newPassword" type={showNewPassword ? "text" : "password"} {...passwordRegister("newPassword")} placeholder="Enter new password" aria-invalid={passwordErrors.newPassword ? "true" : "false"} className="pr-10" onFocus={() => setShowPasswordCriteriaUI(true)} />
+                        <Button type="button" variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 px-0" onClick={() => setShowNewPassword(!showNewPassword)}>
+                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {passwordErrors.newPassword && <p className="text-sm text-destructive mt-1">{passwordErrors.newPassword.message}</p>}
+                       {showPasswordCriteriaUI && (
+                        <ul className="mt-2 space-y-1 p-3 bg-muted/50 rounded-md">
+                          <PasswordRequirementItem met={passwordCriteria.minLength} text="At least 8 characters" />
+                          <PasswordRequirementItem met={passwordCriteria.uppercase} text="At least one uppercase letter (A-Z)" />
+                          <PasswordRequirementItem met={passwordCriteria.lowercase} text="At least one lowercase letter (a-z)" />
+                          <PasswordRequirementItem met={passwordCriteria.number} text="At least one number (0-9)" />
+                          <PasswordRequirementItem met={passwordCriteria.specialChar} text="At least one special character (e.g., !@#$%)" />
+                        </ul>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
+                      <div className="relative">
+                        <Input id="confirmNewPassword" type={showConfirmNewPassword ? "text" : "password"} {...passwordRegister("confirmNewPassword")} placeholder="Re-enter new password" aria-invalid={passwordErrors.confirmNewPassword ? "true" : "false"} className="pr-10" />
+                        <Button type="button" variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 px-0" onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}>
+                            {showConfirmNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {passwordErrors.confirmNewPassword && <p className="text-sm text-destructive mt-1">{passwordErrors.confirmNewPassword.message}</p>}
+                    </div>
+                     <Button type="submit" className="w-full" disabled={isChangingPassword || !user?.emailVerified}>
+                       {isChangingPassword ? <Loader2 className="animate-spin mr-2" /> : <KeyRound className="mr-2 h-4 w-4" />}
+                      Change Password
+                    </Button>
+                     {!user?.emailVerified && <p className="text-xs text-destructive text-center mt-1">Verify your email to change password.</p>}
+                  </form>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
         </CardContent>
+         <CardFooter className="flex justify-center text-sm text-muted-foreground pt-4">
+          <Link href="/" passHref>
+            <Button variant="outline" size="sm">
+              Back to Home
+            </Button>
+          </Link>
+        </CardFooter>
       </Card>
     </div>
   );

@@ -1,3 +1,4 @@
+
 // src/app/login/page.tsx
 "use client";
 
@@ -6,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { signInWithGoogle, signInWithFacebook, signUpWithEmailPassword, signInWithEmailPassword, getFirebaseAuthErrorMessage } from '@/lib/firebase/auth';
+import { signInWithGoogle, signInWithFacebook, signUpWithEmailPasswordAndSendVerification, signInWithEmailPassword, getFirebaseAuthErrorMessage, signOut } from '@/lib/firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,10 +41,17 @@ const loginSchema = z.object({
 });
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+const signUpPasswordValidation = z.string()
+  .min(8, { message: "Password must be at least 8 characters." })
+  .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter." })
+  .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter." })
+  .regex(/[0-9]/, { message: "Password must contain at least one number." })
+  .regex(/[^A-Za-z0-9]/, { message: "Password must contain at least one special character." });
+
 const signUpSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-  confirmPassword: z.string().min(6, { message: "Confirm password must be at least 6 characters." }),
+  password: signUpPasswordValidation,
+  confirmPassword: signUpPasswordValidation,
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match.",
   path: ["confirmPassword"],
@@ -94,30 +102,25 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (activeTab === "signup" && watchedSignUpPassword !== undefined) {
-      setSignUpPasswordValue(watchedSignUpPassword);
+      setSignUpPasswordValue(watchedSignUpPassword); // Keep this for direct use if needed
       const criteriaMet: PasswordCriteria = {
         minLength: watchedSignUpPassword.length >= 8,
         uppercase: /[A-Z]/.test(watchedSignUpPassword),
         lowercase: /[a-z]/.test(watchedSignUpPassword),
         number: /[0-9]/.test(watchedSignUpPassword),
-        specialChar: /[!@#$%^&*(),.?":{}|<>]/.test(watchedSignUpPassword),
+        specialChar: /[^A-Za-z0-9]/.test(watchedSignUpPassword),
       };
       setPasswordCriteria(criteriaMet);
     } else {
-      setShowPasswordCriteria(false); // Hide if not on signup tab or password undefined
+      setShowPasswordCriteria(false);
     }
   }, [watchedSignUpPassword, activeTab]);
 
 
-  const handleAuthSuccess = (isNewUserFromEmailPasswordSignUp: boolean) => {
-    if (isNewUserFromEmailPasswordSignUp) {
-      toast({ title: "Account Created!", description: "Please complete your profile." });
-      router.push('/complete-profile');
-    } else {
-      toast({ title: "Success!", description: "Logged in successfully." });
-      router.push('/');
-    }
-    router.refresh(); 
+  const handleAuthSuccess = () => { // Simplified: always goes to home after successful login/OAuth
+    toast({ title: "Success!", description: "Logged in successfully." });
+    router.push('/');
+    router.refresh();
   };
 
   const handleAuthError = (authError: any) => {
@@ -131,9 +134,11 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithEmailPassword(data.email, data.password);
-      handleAuthSuccess(false);
+      handleAuthSuccess();
     } catch (authError) {
       handleAuthError(authError);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -141,10 +146,21 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
     try {
-      await signUpWithEmailPassword(data.email, data.password);
-      handleAuthSuccess(true);
+      await signUpWithEmailPasswordAndSendVerification(data.email, data.password);
+      toast({
+        title: "Account Created & Verification Email Sent!",
+        description: "Please check your email (including spam folder) and click the verification link. You can then log in to complete your profile.",
+        duration: 10000, // Longer duration for this important message
+        variant: "default",
+      });
+      // Consider signing out the user to force email verification flow strictly
+      // await signOut(); 
+      router.push('/'); // Redirect to home page. User can log in after verification.
+      router.refresh();
     } catch (authError) {
       handleAuthError(authError);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -153,9 +169,11 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithGoogle();
-      handleAuthSuccess(false);
+      handleAuthSuccess();
     } catch (authError) {
       handleAuthError(authError);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -164,9 +182,11 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithFacebook();
-      handleAuthSuccess(false);
+      handleAuthSuccess();
     } catch (authError) {
       handleAuthError(authError);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -248,7 +268,7 @@ export default function LoginPage() {
                       aria-invalid={signUpErrors.password ? "true" : "false"}
                       className="pr-10"
                       onFocus={() => setShowPasswordCriteria(true)}
-                      // onBlur={() => setShowPasswordCriteria(false)} // Optionally hide on blur if empty
+                      // onBlur={() => setShowPasswordCriteria(false)} // Optionally hide on blur
                     />
                      <Button 
                       type="button" 
