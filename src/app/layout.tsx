@@ -13,8 +13,8 @@ const recaptchaSiteKeyFromEnv = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 // --- Critical for Social Sharing ---
 // 1. NEXT_PUBLIC_SITE_URL: This environment variable MUST be set to your production URL in Vercel/hosting.
 //    e.g., NEXT_PUBLIC_SITE_URL=https://your-promptforge-app.com
-// 2. Image File: Ensure 'promptforge-og.png' exists in your 'public' folder.
-//    Recommended dimensions: 1200x630px. Keep file size reasonable (e.g., < 500KB).
+// 2. Image File: Ensure an image (e.g., 'promptforge-og.png') exists in your 'public' folder or a subdirectory like 'public/images/'.
+//    Recommended dimensions: 1200x630px. Keep file size reasonable (e.g., < 300KB for WhatsApp, < 1MB generally).
 
 let resolvedSiteUrl: URL;
 const defaultSiteUrlString = 'https://prompt-forge-blond.vercel.app'; // Default fallback
@@ -30,7 +30,11 @@ try {
   resolvedSiteUrl = new URL(defaultSiteUrlString);
 }
 
-const ogImageFileName = 'images/promptforge-og.png'; // Your OG image in the /public folder
+// IMPORTANT: This path is relative to the `public` folder.
+// If your image is `public/promptforge-og.png`, use 'promptforge-og.png'.
+// If your image is `public/images/promptforge-og.png`, use 'images/promptforge-og.png'.
+const ogImageFileName = 'images/promptforge-og.png'; // Current: expects `public/images/promptforge-og.png`
+const ogImageType = 'image/png'; // Change to 'image/jpeg' if it's a JPG
 
 if (!process.env.NEXT_PUBLIC_SITE_URL) {
   console.warn(
@@ -48,12 +52,14 @@ if (!recaptchaSiteKeyFromEnv || recaptchaSiteKeyFromEnv === "your_actual_recaptc
   );
 }
 
+const absoluteOgImageUrl = new URL(ogImageFileName.startsWith('/') ? ogImageFileName : `/${ogImageFileName}`, resolvedSiteUrl).toString();
+
 export const metadata: Metadata = {
   metadataBase: resolvedSiteUrl,
   title: 'PromptForge | AI Prompt Engineering Assistant',
   description: 'PromptForge: Your AI-powered workspace to craft, refine, and perfect prompts for any generative AI. Get better results, faster.',
   icons: {
-    icon: `/${ogImageFileName}`, // Assumes image is in /public
+    icon: absoluteOgImageUrl, // Using the same image for favicon, ensure it's suitable
   },
   openGraph: {
     title: 'PromptForge: AI Prompt Engineering Assistant',
@@ -62,7 +68,9 @@ export const metadata: Metadata = {
     siteName: 'PromptForge',
     images: [
       {
-        url: new URL(`/${ogImageFileName}`, resolvedSiteUrl).toString(), // Ensures absolute URL
+        url: absoluteOgImageUrl,
+        secureUrl: absoluteOgImageUrl, // Explicitly provide secure_url
+        type: ogImageType,             // Specify image MIME type
         width: 1200,
         height: 630,
         alt: 'PromptForge - AI Prompt Engineering Tool',
@@ -75,9 +83,9 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'PromptForge: AI Prompt Engineering Assistant',
     description: 'Craft, refine, and perfect your AI prompts with PromptForge. Unlock the full potential of generative AI tools.',
-    images: [
+    images: [ // Twitter also uses og:image if twitter:image is not set, but good to be explicit
       {
-        url: new URL(`/${ogImageFileName}`, resolvedSiteUrl).toString(), // Ensures absolute URL
+        url: absoluteOgImageUrl,
         alt: 'PromptForge Twitter Card Image',
       }
     ],
