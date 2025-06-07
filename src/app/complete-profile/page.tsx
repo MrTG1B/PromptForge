@@ -16,9 +16,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowRight, Camera, UserCircle2 } from 'lucide-react'; // Added UserCircle2 for generic fallback
-import { auth } from '@/lib/firebase/config';
+import { Loader2, ArrowRight, Camera } from 'lucide-react';
+import { auth, db } from '@/lib/firebase/config'; // Import db from Firebase config
 import { updateProfile } from 'firebase/auth';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'; // Firestore functions
 import { storage as appwriteStorage } from '@/lib/appwrite/config';
 import { ID } from 'appwrite';
 import PhoneNumberInput from '@/components/ui/phone-number-input';
@@ -81,14 +82,17 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-interface StoredProfileData {
+// Interface for data fetched from Firestore (subset of ProfileFormValues)
+interface FirestoreProfileData {
   firstName?: string;
   lastName?: string;
   dobDay?: string;
   dobMonth?: string;
   dobYear?: string;
   mobileNumber?: string;
+  photoURL?: string | null; // photoURL from Appwrite is also stored here
 }
+
 
 const monthOptions = [
   { value: "1", label: "January" }, { value: "2", label: "February" },
@@ -191,36 +195,61 @@ export default function CompleteProfilePage() {
   const watchedFirstName = watch('firstName');
   const watchedLastName = watch('lastName');
 
-  useEffect(() => {
+ useEffect(() => {
     if (user) {
-      if (user.displayName) {
-        const nameParts = user.displayName.split(' ');
-        setValue('firstName', nameParts[0] || '');
-        if (nameParts.length > 1) {
-          setValue('lastName', nameParts.slice(1).join(' ') || '');
-        }
-      }
-      // Set initial preview from user.photoURL if available and no image selected yet
-      if (user.photoURL && !imgSrc && !croppedImageFile) {
-        setPreview(user.photoURL); 
-      }
-
-      const storedDataString = localStorage.getItem(`profileData_${user.uid}`);
-      if (storedDataString) {
+      const fetchProfileData = async () => {
+        const userDocRef = doc(db, "users", user.uid);
         try {
-          const storedData: StoredProfileData = JSON.parse(storedDataString);
-          if (storedData.firstName && !watch('firstName')) setValue('firstName', storedData.firstName);
-          if (storedData.lastName && !watch('lastName')) setValue('lastName', storedData.lastName || '');
-          if (storedData.dobDay) setValue('dobDay', storedData.dobDay);
-          if (storedData.dobMonth) setValue('dobMonth', storedData.dobMonth);
-          if (storedData.dobYear) setValue('dobYear', storedData.dobYear);
-          if (storedData.mobileNumber) setValue('mobileNumber', storedData.mobileNumber);
-        } catch (e) {
-          console.error("Failed to parse stored profile data:", e);
+          const docSnap = await getDoc(userDocRef);
+          if (docSnap.exists()) {
+            const firestoreData = docSnap.data() as FirestoreProfileData;
+            setValue('firstName', firestoreData.firstName || '');
+            setValue('lastName', firestoreData.lastName || '');
+            setValue('dobDay', firestoreData.dobDay || '');
+            setValue('dobMonth', firestoreData.dobMonth || '');
+            setValue('dobYear', firestoreData.dobYear || '');
+            setValue('mobileNumber', firestoreData.mobileNumber || '');
+            
+            // Set preview from Firestore photoURL if available and no other preview source
+            if (firestoreData.photoURL && !imgSrc && !croppedImageFile) {
+              setPreview(firestoreData.photoURL);
+            } else if (user.photoURL && !imgSrc && !croppedImageFile && !firestoreData.photoURL) {
+              // Fallback to auth photoURL if Firestore doesn't have one
+              setPreview(user.photoURL);
+            }
+
+          } else {
+            // No Firestore data, try to prefill from auth if available
+            if (user.displayName) {
+              const nameParts = user.displayName.split(' ');
+              setValue('firstName', nameParts[0] || '');
+              if (nameParts.length > 1) {
+                setValue('lastName', nameParts.slice(1).join(' ') || '');
+              }
+            }
+            if (user.photoURL && !imgSrc && !croppedImageFile) {
+              setPreview(user.photoURL);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching profile data from Firestore:", error);
+          toast({ title: "Error", description: "Could not fetch profile data.", variant: "destructive" });
+          // Fallback to auth data if Firestore fetch fails
+            if (user.displayName) {
+              const nameParts = user.displayName.split(' ');
+              setValue('firstName', nameParts[0] || '');
+              if (nameParts.length > 1) {
+                setValue('lastName', nameParts.slice(1).join(' ') || '');
+              }
+            }
+            if (user.photoURL && !imgSrc && !croppedImageFile) {
+              setPreview(user.photoURL);
+            }
         }
-      }
+      };
+      fetchProfileData();
     }
-  }, [user, setValue, watch, imgSrc, croppedImageFile]);
+  }, [user, setValue, toast, imgSrc, croppedImageFile]);
 
 
   useEffect(() => {
@@ -300,11 +329,10 @@ export default function CompleteProfilePage() {
     // Do not reset croppedImageFile here, as it might hold the previously saved crop
     setIsCropModalOpen(false);
     if (fileInputRef.current) fileInputRef.current.value = ""; 
-    // If user cancels, reset preview to user's photoURL or initials if no user.photoURL
+    
     if (user && user.photoURL && !croppedImageFile) {
         setPreview(user.photoURL);
     } else if (!croppedImageFile) {
-        // If no user.photoURL and no cropped file, preview should show initials or camera
         setPreview(null); 
     }
   };
@@ -350,19 +378,23 @@ export default function CompleteProfilePage() {
 
       await updateProfile(auth.currentUser, {
         displayName: newDisplayName,
-        photoURL: newPhotoURL, // This will be null if no image was ever uploaded, or the new URL
+        photoURL: newPhotoURL, 
       });
-      
-      const profileDataToStore: StoredProfileData = {
+
+      // Save/update profile data in Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      const profileDataForFirestore: FirestoreProfileData & { updatedAt: any } = {
         firstName: data.firstName,
         lastName: data.lastName,
         dobDay: data.dobDay,
         dobMonth: data.dobMonth,
         dobYear: data.dobYear,
         mobileNumber: data.mobileNumber,
+        photoURL: newPhotoURL, // Store the Appwrite URL in Firestore as well
+        updatedAt: serverTimestamp() // Keep track of last update
       };
-      localStorage.setItem(`profileData_${user.uid}`, JSON.stringify(profileDataToStore));
-
+      await setDoc(userDocRef, profileDataForFirestore, { merge: true });
+      
       toast({
         title: "Profile Updated!",
         description: "Your profile has been successfully updated.",
@@ -535,6 +567,7 @@ export default function CompleteProfilePage() {
                   {errors.dobYear && <p className="text-sm text-destructive mt-1">{errors.dobYear.message}</p>}
                 </div>
               </div>
+              {/* This is for the date validation error from .refine */}
               {errors.root?.message && !errors.dobDay && !errors.dobMonth && !errors.dobYear && (
                 <p className="text-sm text-destructive mt-1 col-span-3">{errors.root.message}</p>
               )}
@@ -568,5 +601,3 @@ export default function CompleteProfilePage() {
     </div>
   );
 }
-
-      
