@@ -147,15 +147,8 @@ export default function LoginPage() {
     setError(null);
     try {
       await signUpWithEmailPasswordAndSendVerification(data.email, data.password);
-      toast({
-        title: "Account Created & Verification Email Sent!",
-        description: "Please check your email (including spam folder) and click the verification link. You can then log in to complete your profile.",
-        duration: 15000, // Longer duration for this important message
-        variant: "default",
-      });
-      // User is NOT redirected here. They should verify their email and then log in.
-      // router.push('/'); // Removed this line
-      // router.refresh(); // No need to refresh if not navigating
+      // User is now redirected to a dedicated verification page
+      router.push('/auth/verify-email'); 
     } catch (authError) {
       handleAuthError(authError);
     } finally {
