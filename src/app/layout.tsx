@@ -30,9 +30,9 @@ try {
   resolvedSiteUrl = new URL(defaultSiteUrlString);
 }
 
-// IMPORTANT: This path is now relative to the `public` folder root.
-// Your image should be at `public/promptforge-og.png`.
-const ogImageFileName = 'promptforge-og.png'; 
+// IMPORTANT: This path is relative to the `public` folder root.
+// Your image MUST be at `public/promptforge-og.png`.
+const ogImageRelativePath = '/promptforge-og.png';
 const ogImageType = 'image/png'; // Change to 'image/jpeg' if it's a JPG
 
 if (!process.env.NEXT_PUBLIC_SITE_URL) {
@@ -51,26 +51,22 @@ if (!recaptchaSiteKeyFromEnv || recaptchaSiteKeyFromEnv === "your_actual_recaptc
   );
 }
 
-const absoluteOgImageUrl = new URL(ogImageFileName.startsWith('/') ? ogImageFileName.substring(1) : ogImageFileName, resolvedSiteUrl).toString();
-
-
 export const metadata: Metadata = {
-  metadataBase: resolvedSiteUrl,
+  metadataBase: resolvedSiteUrl, // Key for Next.js to resolve relative image paths
   title: 'PromptForge | AI Prompt Engineering Assistant',
   description: 'PromptForge: Your AI-powered workspace to craft, refine, and perfect prompts for any generative AI. Get better results, faster.',
   icons: {
-    icon: absoluteOgImageUrl, 
+    icon: ogImageRelativePath, // Next.js will resolve this using metadataBase
   },
   openGraph: {
     title: 'PromptForge: AI Prompt Engineering Assistant',
     description: 'Craft, refine, and perfect your AI prompts with PromptForge. Unlock the full potential of generative AI tools.',
-    url: resolvedSiteUrl.toString(),
+    url: resolvedSiteUrl.toString(), // The canonical URL of your page
     siteName: 'PromptForge',
-    images: [
+    images: [ // Array of images is best practice
       {
-        url: absoluteOgImageUrl,
-        secureUrl: absoluteOgImageUrl, 
-        type: ogImageType,            
+        url: ogImageRelativePath, // Relative path; Next.js resolves this using metadataBase
+        type: ogImageType,
         width: 1200,
         height: 630,
         alt: 'PromptForge - AI Prompt Engineering Tool',
@@ -83,12 +79,14 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'PromptForge: AI Prompt Engineering Assistant',
     description: 'Craft, refine, and perfect your AI prompts with PromptForge. Unlock the full potential of generative AI tools.',
-    images: [ 
-      {
-        url: absoluteOgImageUrl,
-        alt: 'PromptForge Twitter Card Image',
-      }
-    ],
+    images: [ogImageRelativePath], // Relative path; Next.js resolves this
+    // Or using an object:
+    // images: [
+    //   {
+    //     url: ogImageRelativePath,
+    //     alt: 'PromptForge Twitter Card Image',
+    //   }
+    // ],
   },
   other: {
     'fb:app_id': facebookAppId,
