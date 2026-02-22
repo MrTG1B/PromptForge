@@ -47,6 +47,9 @@ export const metadata: Metadata = {
   metadataBase: resolvedSiteUrl,
   title: 'PromptForge | AI Prompt Engineering Assistant',
   description: 'PromptForge: Your AI-powered workspace to craft, refine, and perfect prompts for any generative AI. Get better results, faster.',
+  alternates: {
+    canonical: resolvedSiteUrl.toString(),
+  },
   icons: {
     icon: [
       { url: ogImageRelativePath, type: ogImageType, sizes: 'any' }, // General purpose icon
@@ -103,6 +106,19 @@ export default function RootLayout({
           crossOrigin="anonymous"
           strategy="beforeInteractive"
           id="google-adsense-script"
+        />
+        <Script
+          id="json-ld-website"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: 'PromptForge',
+              url: resolvedSiteUrl.toString(),
+              description: 'PromptForge: Your AI-powered workspace to craft, refine, and perfect prompts for any generative AI.',
+            }),
+          }}
         />
       </head>
       <body className="font-body antialiased min-h-screen flex flex-col" suppressHydrationWarning={true}>
