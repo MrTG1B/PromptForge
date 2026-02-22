@@ -45,8 +45,18 @@ if (!getApps().length) {
   app = getApps()[0];
 }
 
-const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app); // Initialize Firestore
+// Lazily initialise auth/db so that Next.js static pre-rendering (which runs
+// without NEXT_PUBLIC_* env vars) does not throw auth/invalid-api-key and
+// abort the build.  In production these are always defined and work normally.
+let auth: Auth;
+let db: Firestore;
+try {
+  auth = getAuth(app);
+  db = getFirestore(app);
+} catch {
+  auth = {} as Auth;
+  db = {} as Firestore;
+}
 
 export { app, auth, db }; // Export db
 
